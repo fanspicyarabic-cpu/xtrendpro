@@ -1,0 +1,28 @@
+[
+  {
+    "slug": "vip-premiere-arabic",
+    "title": "🔥 العرض الحصري الكامل بدقة 4K فائقة الوضوح",
+    "description": "شاهد المقطع الحصري الكامل قبل الحذف. جودة فائقة وبث مباشر بدون انقطاع.",
+    "mediaUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80",
+    "mediaType": "image",
+    "adCode": "<!-- Adsterra 300x250 Banner Demo -->\n<script type=\"text/javascript\">\n\tatOptions = {\n\t\t'key' : 'demo_adsterra_key_300x250',\n\t\t'format' : 'iframe',\n\t\t'height' : 250,\n\t\t'width' : 300,\n\t\t'params' : {}\n\t};\n</script>\n<script type=\"text/javascript\" src=\"//www.topcreativeformat.com/demo_adsterra_key_300x250/invoke.js\"></script>",
+    "ctaText": "⚡ فتح الفيديو الكامل بجودة 4K الآن",
+    "ctaLink": "https://t.me",
+    "views": 3450,
+    "clicks": 820,
+    "createdAt": "2026-10-01T20:11:24.737Z"
+  },
+  {
+    "slug": "test-model-premiere-4k",
+    "title": "🎬 العرض الأول المثير - المشاهد غير المعروضة",
+    "description": "كواليس ومقاطع حصرية لم يسبق نشرها بجودة فائقة الوضوح.",
+    "mediaUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "mediaType": "video",
+    "adCode": "<!-- Adsterra Social Bar Demo -->\n<script type='text/javascript' src='//pl12345678.highperformancegate.com/ab/cd/ef/abcdef123456.js'></script>",
+    "ctaText": "🔥 متابعة مشاهدة البث كاملاً على تليجرام",
+    "ctaLink": "https://t.me",
+    "views": 1890,
+    "clicks": 410,
+    "createdAt": "2026-10-01T20:11:24.737Z"
+  }
+]

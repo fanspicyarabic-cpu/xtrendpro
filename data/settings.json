@@ -1,0 +1,23 @@
+{
+  "telegramBotToken": "admin123",
+  "telegramChannelId": "admin",
+  "siteBaseUrl": "http://localhost:3000",
+  "defaultAdCode": "",
+  "twitterClientId": "",
+  "twitterClientSecret": "",
+  "twitterApiKey": "",
+  "twitterApiKeySecret": "",
+  "twitterAccessToken": "",
+  "twitterAccessTokenSecret": "",
+  "defaultAds": {
+    "socialBar": "",
+    "popunder": "",
+    "smartlink": "https://www.highperformanceformat.com/test-smartlink",
+    "banner300x250": "",
+    "banner728x90": "",
+    "banner320x50": "",
+    "banner468x60": "",
+    "banner160x600": "",
+    "banner160x300": ""
+  }
+}

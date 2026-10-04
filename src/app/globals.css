@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #080b11;
+  --foreground: #f8fafc;
+  --font-arabic: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  color: var(--foreground);
+  background: radial-gradient(circle at 50% -20%, #151f33 0%, #080b11 100%);
+  min-height: 100vh;
+  font-family: var(--font-arabic);
+  overflow-x: hidden;
+  direction: rtl;
+}
+
+/* Glassmorphism Luxury Styling */
+.glass-panel-luxury {
+  background: rgba(14, 20, 33, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+}
+
+.glass-card-subtle {
+  background: rgba(20, 29, 48, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(12, 142, 233, 0.3);
+}
+
+.glass-input-ar {
+  background: rgba(11, 16, 27, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  transition: all 0.2s ease;
+  font-family: var(--font-arabic);
+}
+
+.glass-input-ar:focus {
+  border-color: #0c8ee9;
+  box-shadow: 0 0 0 3px rgba(12, 142, 233, 0.25);
+  outline: none;
+  background: rgba(13, 21, 38, 0.95);
+}
+
+/* High Converting Arabic CTA Buttons */
+.btn-emerald-glow {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  color: white;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35);
+}
+
+.btn-emerald-glow:hover {
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+  box-shadow: 0 6px 28px rgba(16, 185, 129, 0.55);
+  transform: translateY(-1px);
+}
+
+.btn-accent-glow {
+  background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+  color: white;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.35);
+}
+
+.btn-accent-glow:hover {
+  background: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
+  box-shadow: 0 6px 28px rgba(236, 72, 153, 0.6);
+  transform: translateY(-1px);
+}
+
+.btn-cyan-glow {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  color: white;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35);
+}
+
+.btn-cyan-glow:hover {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  box-shadow: 0 6px 28px rgba(14, 165, 233, 0.55);
+  transform: translateY(-1px);
+}
+
+/* Telegram special button */
+.btn-tg-ar {
+  background: linear-gradient(135deg, #2aabee 0%, #229ed9 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34, 158, 217, 0.35);
+  transition: all 0.25s ease;
+}
+
+.btn-tg-ar:hover {
+  box-shadow: 0 6px 24px rgba(34, 158, 217, 0.55);
+  transform: translateY(-1px);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080b11;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1c2638;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2e3e5c;
+}
