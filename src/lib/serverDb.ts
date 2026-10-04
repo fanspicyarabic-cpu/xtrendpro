@@ -127,6 +127,9 @@ export function getStoredPages(): LandingPageData[] {
   return DEFAULT_PAGES;
 }
 
+const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "fanspicyrabic";
+const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAz1AHssprR5V0fKJEnhew0riAqGMAf0WU";
+
 export function saveStoredPage(page: LandingPageData): LandingPageData {
   const pages = [...getStoredPages()];
   const existingIndex = pages.findIndex((p) => p.slug === page.slug);
@@ -148,12 +151,56 @@ export function saveStoredPage(page: LandingPageData): LandingPageData {
   // Always update in-memory cache first
   inMemoryPages = pages;
 
-  // Try persisting to disk in writable directory safely
+  // 1. Try persisting to disk in writable directory safely
   try {
     ensureDataDir();
     fs.writeFileSync(PAGES_FILE, JSON.stringify(pages, null, 2), "utf-8");
   } catch (e) {
     console.warn("Could not write pages to disk (relying on memory):", e);
+  }
+
+  // 2. Persist to Firestore REST API (Works permanently across all Vercel instances)
+  try {
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/pages/${encodeURIComponent(page.slug)}?key=${FIREBASE_API_KEY}`;
+    const payload = {
+      fields: {
+        slug: { stringValue: updatedPage.slug || "" },
+        title: { stringValue: updatedPage.title || "" },
+        description: { stringValue: updatedPage.description || "" },
+        mediaUrl: { stringValue: updatedPage.mediaUrl || "" },
+        mediaType: { stringValue: updatedPage.mediaType || "image" },
+        adCode: { stringValue: updatedPage.adCode || "" },
+        ctaText: { stringValue: updatedPage.ctaText || "" },
+        ctaLink: { stringValue: updatedPage.ctaLink || "" },
+        views: { integerValue: String(updatedPage.views || 0) },
+        clicks: { integerValue: String(updatedPage.clicks || 0) },
+        createdAt: { stringValue: updatedPage.createdAt || new Date().toISOString() },
+        updatedAt: { stringValue: updatedPage.updatedAt || new Date().toISOString() },
+        ads: {
+          mapValue: {
+            fields: {
+              socialBar: { stringValue: updatedPage.ads?.socialBar || "" },
+              popunder: { stringValue: updatedPage.ads?.popunder || "" },
+              smartlink: { stringValue: updatedPage.ads?.smartlink || "" },
+              banner300x250: { stringValue: updatedPage.ads?.banner300x250 || "" },
+              banner728x90: { stringValue: updatedPage.ads?.banner728x90 || "" },
+              banner320x50: { stringValue: updatedPage.ads?.banner320x50 || "" },
+              banner468x60: { stringValue: updatedPage.ads?.banner468x60 || "" },
+              banner160x600: { stringValue: updatedPage.ads?.banner160x600 || "" },
+              banner160x300: { stringValue: updatedPage.ads?.banner160x300 || "" },
+            }
+          }
+        }
+      }
+    };
+
+    fetch(firestoreUrl, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch((err) => console.warn("Firestore sync warning:", err));
+  } catch (err) {
+    console.warn("Firestore save error:", err);
   }
 
   return updatedPage;
@@ -166,6 +213,11 @@ export function deleteStoredPage(slug: string): boolean {
   try {
     ensureDataDir();
     fs.writeFileSync(PAGES_FILE, JSON.stringify(pages, null, 2), "utf-8");
+  } catch (e) {}
+
+  try {
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/pages/${encodeURIComponent(slug)}?key=${FIREBASE_API_KEY}`;
+    fetch(firestoreUrl, { method: "DELETE" }).catch(() => {});
   } catch (e) {}
 
   return true;
