@@ -1,15 +1,41 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { LandingPageData, AdminSettings } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+const SEED_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = IS_SERVERLESS ? path.join(os.tmpdir(), "xtren-data") : SEED_DIR;
 const PAGES_FILE = path.join(DATA_DIR, "pages.json");
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
 
-// Ensure data directory exists
+// Ensure data directory exists and seed initial data if running in serverless /tmp
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    if (IS_SERVERLESS) {
+      if (!fs.existsSync(PAGES_FILE)) {
+        const seedPages = path.join(SEED_DIR, "pages.json");
+        if (fs.existsSync(seedPages)) {
+          try {
+            fs.copyFileSync(seedPages, PAGES_FILE);
+          } catch {}
+        }
+      }
+      if (!fs.existsSync(SETTINGS_FILE)) {
+        const seedSettings = path.join(SEED_DIR, "settings.json");
+        if (fs.existsSync(seedSettings)) {
+          try {
+            fs.copyFileSync(seedSettings, SETTINGS_FILE);
+          } catch {}
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("ensureDataDir warning:", err);
   }
 }
 

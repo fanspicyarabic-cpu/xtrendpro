@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
+const UPLOAD_DIR = IS_SERVERLESS ? path.join(os.tmpdir(), "xtren-uploads") : path.join(process.cwd(), "public", "uploads");
 
 function ensureUploadDir() {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(UPLOAD_DIR)) {
+      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("ensureUploadDir error:", err);
   }
 }
 
