@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { LandingPageData, AdminSettings, MediaType, XAuthUser, AdsterraConfig } from "@/lib/types";
+import { resolveMediaUrl } from "@/lib/mediaResolver";
 import AdsterraContainer from "@/components/AdsterraContainer";
 import {
   Send,
@@ -283,7 +284,7 @@ export default function AdminDashboardArabic() {
         slug: formData.slug.trim(),
         title: formData.title.trim(),
         description: formData.description || "",
-        mediaUrl: formData.mediaUrl.trim(),
+        mediaUrl: resolveMediaUrl(formData.mediaUrl.trim()),
         mediaType: (formData.mediaType as MediaType) || "image",
         adCode: formData.adCode || settings.defaultAdCode || "",
         ads: finalAds,
@@ -899,9 +900,9 @@ export default function AdminDashboardArabic() {
                   <div className="w-full aspect-video rounded-xl overflow-hidden bg-black/80 border border-white/10 mb-3 relative flex items-center justify-center">
                     {formData.mediaUrl ? (
                       formData.mediaType === "video" ? (
-                        <video src={formData.mediaUrl} controls className="w-full h-full object-cover" />
+                        <video src={resolveMediaUrl(formData.mediaUrl)} controls className="w-full h-full object-cover" />
                       ) : (
-                        <img src={formData.mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={resolveMediaUrl(formData.mediaUrl)} alt="Preview" className="w-full h-full object-cover" />
                       )
                     ) : (
                       <div className="text-gray-500 text-[10px] flex flex-col items-center gap-1">

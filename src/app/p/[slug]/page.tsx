@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata, ResolvingMetadata } from "next";
 import { getPageForServer } from "@/lib/firebaseAdmin";
+import { resolveMediaUrl } from "@/lib/mediaResolver";
 import AdsterraContainer from "@/components/AdsterraContainer";
 import { 
   Eye, 
@@ -216,18 +217,17 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
           <div className="w-full relative rounded-2xl overflow-hidden glass-panel-luxury border border-white/15 shadow-2xl group mb-5 aspect-video bg-black flex items-center justify-center">
             {isVideo ? (
               <video
-                src={page.mediaUrl}
+                src={resolveMediaUrl(page.mediaUrl)}
                 controls
                 autoPlay
                 playsInline
                 muted
-                poster={page.mediaUrl}
                 className="w-full h-full object-cover rounded-2xl"
               />
             ) : (
               <div className="relative w-full h-full flex items-center justify-center bg-black/60">
                 <img
-                  src={page.mediaUrl}
+                  src={resolveMediaUrl(page.mediaUrl)}
                   alt={page.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
