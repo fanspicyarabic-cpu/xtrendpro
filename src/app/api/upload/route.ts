@@ -20,6 +20,9 @@ function ensureUploadDir() {
 export async function GET() {
   try {
     ensureUploadDir();
+    if (!fs.existsSync(UPLOAD_DIR)) {
+      return NextResponse.json({ success: true, files: [] });
+    }
     const files = fs.readdirSync(UPLOAD_DIR);
     const mediaList = files
       .filter((file) => !file.startsWith("."))
@@ -42,8 +45,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, files: mediaList });
   } catch (error: any) {
-    console.error("Error reading uploads directory:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, files: [] });
   }
 }
 
