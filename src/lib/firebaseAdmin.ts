@@ -12,6 +12,12 @@ export async function getPageForServer(slug: string): Promise<LandingPageData | 
     if (localDoc) {
       // Merge page ads with default site ads from settings
       const mergedAds: AdsterraConfig = {
+        allAdsEnabled:
+          localDoc.ads?.allAdsEnabled !== undefined
+            ? localDoc.ads.allAdsEnabled
+            : defaultAds.allAdsEnabled !== undefined
+            ? defaultAds.allAdsEnabled
+            : true,
         socialBar: localDoc.ads?.socialBar || defaultAds.socialBar || "",
         popunder: localDoc.ads?.popunder || defaultAds.popunder || "",
         smartlink: localDoc.ads?.smartlink || defaultAds.smartlink || "",
@@ -21,6 +27,12 @@ export async function getPageForServer(slug: string): Promise<LandingPageData | 
         banner468x60: localDoc.ads?.banner468x60 || defaultAds.banner468x60 || "",
         banner160x600: localDoc.ads?.banner160x600 || defaultAds.banner160x600 || "",
         banner160x300: localDoc.ads?.banner160x300 || defaultAds.banner160x300 || "",
+        nativeBanner: localDoc.ads?.nativeBanner || defaultAds.nativeBanner || "",
+        customAd: localDoc.ads?.customAd || defaultAds.customAd || "",
+        status: {
+          ...(defaultAds.status || {}),
+          ...(localDoc.ads?.status || {}),
+        },
       };
 
       // Fallback legacy adCode if present
@@ -57,6 +69,7 @@ export async function getPageForServer(slug: string): Promise<LandingPageData | 
         const adsFields = f.ads?.mapValue?.fields || {};
         
         const pageAds: AdsterraConfig = {
+          allAdsEnabled: defaultAds.allAdsEnabled !== undefined ? defaultAds.allAdsEnabled : true,
           socialBar: adsFields.socialBar?.stringValue || defaultAds.socialBar || "",
           popunder: adsFields.popunder?.stringValue || defaultAds.popunder || "",
           smartlink: adsFields.smartlink?.stringValue || defaultAds.smartlink || "",
@@ -66,6 +79,9 @@ export async function getPageForServer(slug: string): Promise<LandingPageData | 
           banner468x60: adsFields.banner468x60?.stringValue || defaultAds.banner468x60 || "",
           banner160x600: adsFields.banner160x600?.stringValue || defaultAds.banner160x600 || "",
           banner160x300: adsFields.banner160x300?.stringValue || defaultAds.banner160x300 || "",
+          nativeBanner: adsFields.nativeBanner?.stringValue || defaultAds.nativeBanner || "",
+          customAd: adsFields.customAd?.stringValue || defaultAds.customAd || "",
+          status: defaultAds.status || {},
         };
 
         const pageCtaLink = f.ctaLink?.stringValue || "";
@@ -82,7 +98,7 @@ export async function getPageForServer(slug: string): Promise<LandingPageData | 
           mediaType: (f.mediaType?.stringValue as any) || "image",
           adCode: f.adCode?.stringValue || settings.defaultAdCode || "",
           ads: pageAds,
-          ctaText: f.ctaText?.stringValue || "⚡ فتح الفيديو الكامل بجودة 4K الآن",
+          ctaText: f.ctaText?.stringValue || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
           ctaLink: effectiveCtaLink,
           views: Number(f.views?.integerValue || 120),
           clicks: Number(f.clicks?.integerValue || 0),

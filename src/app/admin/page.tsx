@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { LandingPageData, AdminSettings, MediaType, XAuthUser, AdsterraConfig } from "@/lib/types";
-import { resolveMediaUrl } from "@/lib/mediaResolver";
-import AdsterraContainer from "@/components/AdsterraContainer";
+import { LandingPageData, AdminSettings, MediaType, XAuthUser, AdsterraConfig, isAdActive } from "@/lib/types";
+import { resolveMediaUrl, detectMediaType, resolveMediaInfo } from "@/lib/mediaResolver";
+import SmartMediaPlayer from "@/components/SmartMediaPlayer";
 import {
   Send,
   Trash2,
@@ -11,7 +11,6 @@ import {
   Copy,
   Check,
   PlusCircle,
-  Settings as SettingsIcon,
   Video,
   Image as ImageIcon,
   Flame,
@@ -24,19 +23,19 @@ import {
   AlertCircle,
   Upload,
   HardDrive,
-  FileVideo,
-  FileImage,
   FolderOpen,
   Smartphone,
-  BarChart3,
   Layers,
-  ArrowUpRight,
   ShieldCheck,
-  CheckCircle,
-  Database,
   Link as LinkIcon,
   DollarSign,
-  Maximize2
+  Edit3,
+  Power,
+  ToggleLeft,
+  ToggleRight,
+  Info,
+  CheckCircle,
+  X
 } from "lucide-react";
 
 interface UploadedFile {
@@ -47,6 +46,117 @@ interface UploadedFile {
   createdAt: string;
 }
 
+// Definition of all 11 Adsterra ad slots with metadata and placement descriptions
+const ADSTERRA_SLOTS: Array<{
+  key: keyof AdsterraConfig;
+  id: string;
+  name: string;
+  placement: string;
+  desc: string;
+  type: "banner" | "direct" | "floating" | "custom";
+  device: "all" | "mobile" | "desktop";
+}> = [
+  {
+    key: "socialBar",
+    id: "30673789",
+    name: "Social Bar (SocialBar_1)",
+    placement: "شريط إشعارات تفاعلي عائم",
+    desc: "يظهر كإشعار تفاعلي أو أيقونة دردشة ذكية عائمة على الهاتف والكمبيوتر لجلب أعلى CTR دون حجب المحتوى.",
+    type: "floating",
+    device: "all",
+  },
+  {
+    key: "popunder",
+    id: "30673794",
+    name: "Popunder (Popunder_1)",
+    placement: "نافذة منبثقة خلفية عالية الـ CPM",
+    desc: "يفتح نافذة إعلانية منبثقة تلقائياً عند أول نقرة أو لمسة للزائر على المشغل لأقصى عائد ربحي ممكن.",
+    type: "floating",
+    device: "all",
+  },
+  {
+    key: "smartlink",
+    id: "30673795",
+    name: "Smartlink (Smartlink_1)",
+    placement: "الرابط المباشر للربح (مرتبط بزر المشاهدة)",
+    desc: "يتم ربطه فورياً بزر التحويل والمشاهدة الرئيسي في كل الصفحات لتحويل الزوار إلى أفضل العروض الربحية.",
+    type: "direct",
+    device: "all",
+  },
+  {
+    key: "banner300x250",
+    id: "30673796",
+    name: "Banner 300x250 (300x250_1)",
+    placement: "أسفل مشغل الفيديو مباشرة (أعلى نقرات)",
+    desc: "المكان الذهبي للإعلانات! يظهر تحت المشغل وزر المشاهدة مباشرة، المكان الأكثر جذباً لانتباه المشاهد.",
+    type: "banner",
+    device: "all",
+  },
+  {
+    key: "banner728x90",
+    id: "30673801",
+    name: "Leaderboard Banner 728x90 (728x90_1)",
+    placement: "أعلى الصفحة لشاشات الكمبيوتر واللابتوب",
+    desc: "بانر عريض يظهر في رأس الصفحة للزوار المتصفحين من الكمبيوتر وشاشات العرض الكبيرة.",
+    type: "banner",
+    device: "desktop",
+  },
+  {
+    key: "banner320x50",
+    id: "30673800",
+    name: "Mobile Banner 320x50 (320x50_1)",
+    placement: "أعلى الصفحة مخصص للهواتف الذكية",
+    desc: "بانر متجاوب ومخصص بالكامل لشاشات الموبايل يظهر أعلى المحتوى لضمان ظهور الإعلان بدون أي تشويه.",
+    type: "banner",
+    device: "mobile",
+  },
+  {
+    key: "banner468x60",
+    id: "30673797",
+    name: "Banner 468x60 (468x60_1)",
+    placement: "أسفل الصفحة للأجهزة اللوحية والموبايل",
+    desc: "بانر متوسط متجاوب يوضع في الجزء السفلي قبل التذييل لتحقيق أرباح إضافية عند التمرير.",
+    type: "banner",
+    device: "all",
+  },
+  {
+    key: "banner160x600",
+    id: "30673799",
+    name: "Skyscraper Banner 160x600 (160x600_1)",
+    placement: "بانر جانبي طولي ثابت (يمين أو يسار)",
+    desc: "بانر عمودي ثابت في السايدبار لشاشات الكمبيوتر، يظل ظاهراً طوال فترة بقاء المشاهد في الصفحة.",
+    type: "banner",
+    device: "desktop",
+  },
+  {
+    key: "banner160x300",
+    id: "30673798",
+    name: "Banner 160x300 (160x300_1)",
+    placement: "بانر جانبي بديل متوسط",
+    desc: "بانر سايدبار متوسط الحجم للأجهزة ذات الدقة المتوسطة.",
+    type: "banner",
+    device: "desktop",
+  },
+  {
+    key: "nativeBanner",
+    id: "Native_1",
+    name: "Native Banner (إعلانات المحتوى الموصى به)",
+    placement: "بين المحتوى وزر الإجراء",
+    desc: "إعلانات أصلية مدمجة تحاكي مقاطع الفيديو المقترحة للحصول على نقرات حقيقية عالية جداً.",
+    type: "banner",
+    device: "all",
+  },
+  {
+    key: "customAd",
+    id: "Custom_1",
+    name: "كود إعلاني مخصص إضافي",
+    placement: "منطقة مخصصة حرة",
+    desc: "يمكنك وضع أي كود إعلاني إضافي من Adsterra أو أي شبكة إعلانية أخرى ترغب بها.",
+    type: "custom",
+    device: "all",
+  },
+];
+
 export default function AdminDashboardArabic() {
   const [activeTab, setActiveTab] = useState<"create" | "media" | "pages" | "settings">("create");
   const [pages, setPages] = useState<LandingPageData[]>([]);
@@ -54,10 +164,16 @@ export default function AdminDashboardArabic() {
   const [loading, setLoading] = useState(true);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
+  // Edit Page state
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Real-time link auto-detection state
+  const [detectedMediaPlatform, setDetectedMediaPlatform] = useState<string | null>(null);
 
   // Settings state with structured Adsterra ad codes
   const [settings, setSettings] = useState<AdminSettings>({
@@ -72,6 +188,7 @@ export default function AdminDashboardArabic() {
     siteBaseUrl: "http://localhost:3000",
     defaultAdCode: "",
     defaultAds: {
+      allAdsEnabled: true,
       socialBar: "",
       popunder: "",
       smartlink: "",
@@ -81,6 +198,9 @@ export default function AdminDashboardArabic() {
       banner468x60: "",
       banner160x600: "",
       banner160x300: "",
+      nativeBanner: "",
+      customAd: "",
+      status: {},
     },
   });
 
@@ -97,6 +217,7 @@ export default function AdminDashboardArabic() {
     adCode: "",
     useDefaultAds: true,
     ads: {
+      allAdsEnabled: true,
       socialBar: "",
       popunder: "",
       smartlink: "",
@@ -106,6 +227,9 @@ export default function AdminDashboardArabic() {
       banner468x60: "",
       banner160x600: "",
       banner160x300: "",
+      nativeBanner: "",
+      customAd: "",
+      status: {},
     },
     ctaText: "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
     ctaLink: "",
@@ -135,7 +259,7 @@ export default function AdminDashboardArabic() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch pages from serverDb API
+      // 1. Fetch pages
       const resPages = await fetch("/api/pages");
       const pagesData = await resPages.json();
       if (pagesData.success && pagesData.pages) {
@@ -157,8 +281,13 @@ export default function AdminDashboardArabic() {
           ...prev,
           ...settingsData.settings,
           defaultAds: {
+            allAdsEnabled: settingsData.settings.defaultAds?.allAdsEnabled !== false,
             ...prev.defaultAds,
             ...(settingsData.settings.defaultAds || {}),
+            status: {
+              ...(prev.defaultAds?.status || {}),
+              ...(settingsData.settings.defaultAds?.status || {}),
+            },
           },
         }));
       }
@@ -189,7 +318,27 @@ export default function AdminDashboardArabic() {
     }
   };
 
-  // Slug generator from title
+  // Real-time intelligent media link handler
+  const handleMediaUrlInput = (rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url) {
+      setDetectedMediaPlatform(null);
+      setFormData((prev) => ({ ...prev, mediaUrl: "" }));
+      return;
+    }
+
+    const detected = detectMediaType(url);
+    const info = resolveMediaInfo(url);
+    setDetectedMediaPlatform(info.platform);
+
+    setFormData((prev) => ({
+      ...prev,
+      mediaUrl: url,
+      mediaType: detected,
+    }));
+  };
+
+  // Auto slug generator from title
   const handleAutoSlug = (text: string) => {
     const slug = text
       .toLowerCase()
@@ -199,7 +348,7 @@ export default function AdminDashboardArabic() {
       .slice(0, 50);
     setFormData((prev) => ({
       ...prev,
-      slug: slug || `post-${Date.now().toString().slice(-6)}`,
+      slug: slug || `premiere-${Date.now().toString().slice(-6)}`,
     }));
   };
 
@@ -230,12 +379,8 @@ export default function AdminDashboardArabic() {
       // Refresh uploads list
       setUploadedFiles((prev) => [data.file, ...prev]);
 
-      // Automatically assign to current form if empty
-      setFormData((prev) => ({
-        ...prev,
-        mediaUrl: data.file.url,
-        mediaType: data.file.type === "video" ? "video" : "image",
-      }));
+      // Automatically assign to current form
+      handleMediaUrlInput(data.file.url);
     } catch (err: any) {
       showNotification("error", err.message || "حدث خطأ أثناء الرفع");
     } finally {
@@ -262,6 +407,45 @@ export default function AdminDashboardArabic() {
     }
   };
 
+  // Edit existing page: load into form
+  const handleEditPage = (page: LandingPageData) => {
+    setEditingSlug(page.slug);
+    setFormData({
+      slug: page.slug,
+      title: page.title,
+      description: page.description || "",
+      mediaUrl: page.mediaUrl,
+      mediaType: page.mediaType,
+      ctaText: page.ctaText || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
+      ctaLink: page.ctaLink || "",
+      useDefaultAds: page.useDefaultAds !== false,
+      ads: page.ads || { ...settings.defaultAds },
+      adCode: page.adCode || "",
+    });
+    handleMediaUrlInput(page.mediaUrl);
+    setActiveTab("create");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showNotification("info", `تم تحميل صفحة "${page.title}" في محرر التعديل`);
+  };
+
+  // Cancel edit mode
+  const handleCancelEdit = () => {
+    setEditingSlug(null);
+    setFormData({
+      slug: "",
+      title: "",
+      description: "",
+      mediaUrl: "",
+      mediaType: "image",
+      adCode: "",
+      useDefaultAds: true,
+      ads: { ...settings.defaultAds },
+      ctaText: "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
+      ctaLink: "",
+    });
+    setDetectedMediaPlatform(null);
+  };
+
   // Handle Create or Update Landing Page
   const handleSubmitPage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,7 +456,6 @@ export default function AdminDashboardArabic() {
 
     setIsSubmitting(true);
     try {
-      // Inherit default ads if useDefaultAds is checked
       const finalAds: AdsterraConfig = formData.useDefaultAds
         ? {
             ...settings.defaultAds,
@@ -284,7 +467,7 @@ export default function AdminDashboardArabic() {
         slug: formData.slug.trim(),
         title: formData.title.trim(),
         description: formData.description || "",
-        mediaUrl: resolveMediaUrl(formData.mediaUrl.trim()),
+        mediaUrl: formData.mediaUrl.trim(),
         mediaType: (formData.mediaType as MediaType) || "image",
         adCode: formData.adCode || settings.defaultAdCode || "",
         ads: finalAds,
@@ -305,21 +488,15 @@ export default function AdminDashboardArabic() {
         throw new Error(data.error || "فشل في حفظ ونشر الصفحة");
       }
 
-      showNotification("success", `تم نشر صفحة الهبوط /p/${newPage.slug} بنجاح!`);
+      showNotification(
+        "success",
+        editingSlug
+          ? `تم تحديث صفحة الهبوط /p/${newPage.slug} بنجاح!`
+          : `تم نشر صفحة الهبوط /p/${newPage.slug} بنجاح!`
+      );
 
       // Reset form
-      setFormData({
-        slug: "",
-        title: "",
-        description: "",
-        mediaUrl: "",
-        mediaType: "image",
-        adCode: "",
-        useDefaultAds: true,
-        ads: { ...settings.defaultAds },
-        ctaText: "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
-        ctaLink: settings.defaultAds?.smartlink || "https://t.me",
-      });
+      handleCancelEdit();
 
       // Reload pages
       const resPages = await fetch("/api/pages");
@@ -424,6 +601,45 @@ export default function AdminDashboardArabic() {
     }
   };
 
+  // Toggle master ad switch
+  const handleToggleMasterAds = () => {
+    const current = settings.defaultAds?.allAdsEnabled !== false;
+    setSettings((prev) => ({
+      ...prev,
+      defaultAds: {
+        ...prev.defaultAds,
+        allAdsEnabled: !current,
+      },
+    }));
+    showNotification("info", !current ? "تم تفعيل كافة إعلانات الموقع 🟢" : "تم إيقاف كافة إعلانات الموقع مؤقتاً 🔴");
+  };
+
+  // Toggle individual Adsterra ad status
+  const handleToggleAdSlot = (slotKey: keyof AdsterraConfig) => {
+    const currentStatus = settings.defaultAds?.status?.[slotKey];
+    // Default is active (true) unless explicitly set to false
+    const isCurrentlyActive = currentStatus !== false;
+    const newStatus = !isCurrentlyActive;
+
+    setSettings((prev) => ({
+      ...prev,
+      defaultAds: {
+        ...prev.defaultAds,
+        status: {
+          ...(prev.defaultAds?.status || {}),
+          [slotKey]: newStatus,
+        },
+      },
+    }));
+
+    showNotification(
+      "info",
+      newStatus
+        ? `تم تفعيل إعلان (${slotKey}) 🟢`
+        : `تم إيقاف إعلان (${slotKey}) مؤقتاً 🔴`
+    );
+  };
+
   // Save Settings to Backend API
   const handleSaveSettings = async () => {
     try {
@@ -447,9 +663,23 @@ export default function AdminDashboardArabic() {
     (1024 * 1024)
   ).toFixed(1);
 
+  // Stats for ads
+  const masterAdsOn = settings.defaultAds?.allAdsEnabled !== false;
+  const configuredAdsCount = ADSTERRA_SLOTS.filter(
+    (s) => Boolean((settings.defaultAds as any)?.[s.key]?.trim())
+  ).length;
+  const activeAdsCount = masterAdsOn
+    ? ADSTERRA_SLOTS.filter(
+        (s) =>
+          Boolean((settings.defaultAds as any)?.[s.key]?.trim()) &&
+          settings.defaultAds?.status?.[s.key] !== false
+      ).length
+    : 0;
+
   return (
     <div className="min-h-screen bg-[#070b13] text-white flex flex-col selection:bg-brand-500 selection:text-white" dir="rtl">
-      {/* Top Professional Header */}
+      
+      {/* Top Header */}
       <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 via-sky-500 to-accent-500 flex items-center justify-center font-black text-xl shadow-lg shadow-sky-500/25">
@@ -458,14 +688,14 @@ export default function AdminDashboardArabic() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-black text-base sm:text-lg tracking-wide text-white">
-                منصة XTREN الحصرية
+                منصة XTREN الاحترافية
               </h1>
               <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                لوحة الإدارة
+                لوحة الإدارة الشاملة
               </span>
             </div>
             <p className="text-[11px] text-gray-400">
-              إدارة صفحات الهبوط · تخزين الميديا · Adsterra · تيليجرام و X
+              إدارة صفحات الهبوط · مشغل الوسائط الذكي · إدارة إعلانات Adsterra · تيليجرام ومنصة X
             </p>
           </div>
         </div>
@@ -483,7 +713,7 @@ export default function AdminDashboardArabic() {
               className="px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/90 border border-white/15 text-xs font-bold text-gray-200 flex items-center gap-1.5 transition-all"
             >
               <Radio className="w-3.5 h-3.5 text-sky-400" />
-              <span>ربط حساب X (تويتر)</span>
+              <span>ربط حساب X</span>
             </a>
           )}
 
@@ -547,24 +777,24 @@ export default function AdminDashboardArabic() {
 
           <div className="glass-panel-luxury p-4 rounded-2xl border border-white/10 flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-400 font-medium">الملفات المخزنة</p>
-              <h3 className="text-xl sm:text-2xl font-black text-purple-400 mt-1">
-                {uploadedFiles.length}
+              <p className="text-xs text-gray-400 font-medium">الإعلانات النشطة</p>
+              <h3 className="text-xl sm:text-2xl font-black text-amber-400 mt-1">
+                {activeAdsCount} <span className="text-xs font-normal text-gray-400">/ {configuredAdsCount}</span>
               </h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-              <FolderOpen className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+              <DollarSign className="w-5 h-5" />
             </div>
           </div>
 
           <div className="glass-panel-luxury p-4 rounded-2xl border border-white/10 flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-400 font-medium">مساحة التخزين</p>
-              <h3 className="text-xl sm:text-2xl font-black text-amber-400 mt-1">
-                {totalStorageMB} MB
+              <p className="text-xs text-gray-400 font-medium">الملفات المخزنة</p>
+              <h3 className="text-xl sm:text-2xl font-black text-purple-400 mt-1">
+                {uploadedFiles.length} <span className="text-xs font-normal text-gray-400">({totalStorageMB} MB)</span>
               </h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
               <HardDrive className="w-5 h-5" />
             </div>
           </div>
@@ -581,7 +811,31 @@ export default function AdminDashboardArabic() {
             }`}
           >
             <PlusCircle className="w-4 h-4" />
-            <span>إنشاء صفحة هبوط جديدة</span>
+            <span>{editingSlug ? "تعديل الصفحة الحالية" : "إنشاء صفحة هبوط جديدة"}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("pages")}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
+              activeTab === "pages"
+                ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30"
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>إدارة الصفحات وتعديلها ({pages.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
+              activeTab === "settings"
+                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+                : "text-gray-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <DollarSign className="w-4 h-4 text-emerald-300" />
+            <span>إدارة وتعديل وإيقاف إعلانات Adsterra ({configuredAdsCount})</span>
           </button>
 
           <button
@@ -595,52 +849,46 @@ export default function AdminDashboardArabic() {
             <FolderOpen className="w-4 h-4" />
             <span>مدير الملفات والميديا ({uploadedFiles.length})</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab("pages")}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
-              activeTab === "pages"
-                ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>إدارة الصفحات المنشورة ({pages.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
-              activeTab === "settings"
-                ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            <DollarSign className="w-4 h-4 text-emerald-400" />
-            <span>أكواد Adsterra الافتراضية والإعدادات</span>
-          </button>
         </div>
 
-        {/* TAB 1: CREATE NEW LANDING PAGE + LIVE MOBILE SIMULATOR */}
+        {/* TAB 1: CREATE OR EDIT LANDING PAGE + LIVE MOBILE SIMULATOR */}
         {activeTab === "create" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Form Column */}
             <div className="lg:col-span-7 space-y-6">
               <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl relative">
-                <div className="flex items-center justify-between mb-6">
+                
+                {/* Header of Form */}
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
                   <div>
                     <h2 className="text-lg font-black text-white flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-accent-500" />
-                      إنشاء صفحة هبوط ديناميكية
+                      {editingSlug ? (
+                        <>
+                          <Edit3 className="w-5 h-5 text-amber-400" />
+                          <span>تعديل صفحة الهبوط: /p/{editingSlug}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5 text-brand-400" />
+                          <span>إنشاء صفحة هبوط ديناميكية احترافية</span>
+                        </>
+                      )}
                     </h2>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      يتم حفظ الصفحة في السيرفر وتوليد بطاقة OG تلقائياً للنشر على تليجرام و X
+                    <p className="text-xs text-gray-400 mt-1">
+                      التعرف التلقائي على روابط الفيديو الترويجي والصور مع دعم كامل للتشغيل على الهاتف والكمبيوتر.
                     </p>
                   </div>
-                  <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 px-3 py-1 rounded-full border border-sky-500/20">
-                    /p/[slug]
-                  </span>
+
+                  {editingSlug && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-gray-300 flex items-center gap-1"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>إلغاء التعديل</span>
+                    </button>
+                  )}
                 </div>
 
                 <form onSubmit={handleSubmitPage} className="space-y-4 text-sm">
@@ -657,7 +905,7 @@ export default function AdminDashboardArabic() {
                       value={formData.title || ""}
                       onChange={(e) => {
                         setFormData({ ...formData, title: e.target.value });
-                        if (!formData.slug) handleAutoSlug(e.target.value);
+                        if (!formData.slug && !editingSlug) handleAutoSlug(e.target.value);
                       }}
                     />
                   </div>
@@ -668,13 +916,15 @@ export default function AdminDashboardArabic() {
                       <label className="text-xs font-bold text-gray-300">
                         الرابط المخصص (Slug) <span className="text-rose-400">*</span>
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => handleAutoSlug(formData.title || "")}
-                        className="text-[11px] text-sky-400 hover:underline font-semibold"
-                      >
-                        توليد تلقائي من العنوان
-                      </button>
+                      {!editingSlug && (
+                        <button
+                          type="button"
+                          onClick={() => handleAutoSlug(formData.title || "")}
+                          className="text-[11px] text-sky-400 hover:underline font-semibold"
+                        >
+                          توليد تلقائي من العنوان
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center rounded-xl overflow-hidden glass-input-ar" dir="ltr">
                       <span className="px-3 text-xs text-gray-500 bg-white/5 border-r border-white/10 py-2.5">
@@ -683,39 +933,43 @@ export default function AdminDashboardArabic() {
                       <input
                         type="text"
                         required
+                        disabled={Boolean(editingSlug)}
                         placeholder="vip-premiere-01"
-                        className="w-full bg-transparent px-3 py-2.5 text-sm focus:outline-none text-white font-mono text-left"
+                        className="w-full bg-transparent px-3 py-2.5 text-sm focus:outline-none text-white font-mono text-left disabled:opacity-60"
                         value={formData.slug || ""}
                         onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                       />
                     </div>
                   </div>
 
-                  {/* Media Upload & URL */}
-                  <div className="space-y-2">
+                  {/* Media Upload & URL with Intelligent Auto-Detection */}
+                  <div className="space-y-2 p-4 rounded-2xl bg-white/5 border border-white/10">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-300">
-                        رابط ملف الوسائط (فيديو أو صورة) <span className="text-rose-400">*</span>
+                      <label className="text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                        <Video className="w-4 h-4 text-brand-400" />
+                        <span>رابط ملف الوسائط (فيديو ترويجي أو صورة)</span>
+                        <span className="text-rose-400">*</span>
                       </label>
                       <button
                         type="button"
                         onClick={() => setActiveTab("media")}
-                        className="text-[11px] text-brand-400 hover:underline flex items-center gap-1 font-semibold"
+                        className="text-[11px] text-sky-400 hover:underline flex items-center gap-1 font-semibold"
                       >
                         <FolderOpen className="w-3.5 h-3.5" />
-                        <span>اختيار من الملفات المرفوعة</span>
+                        <span>الملفات المرفوعة بالسيرفر</span>
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="sm:col-span-2">
                         <input
                           type="text"
                           required
-                          placeholder="رابط مباشر للوسائط أو ملف مرفوع..."
-                          className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono"
+                          placeholder="الصق الرابط (Videy, Catbox, YouTube, MP4, مباشر)..."
+                          className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
+                          dir="ltr"
                           value={formData.mediaUrl || ""}
-                          onChange={(e) => setFormData({ ...formData, mediaUrl: e.target.value })}
+                          onChange={(e) => handleMediaUrlInput(e.target.value)}
                         />
                       </div>
                       <div>
@@ -724,14 +978,27 @@ export default function AdminDashboardArabic() {
                           value={formData.mediaType || "image"}
                           onChange={(e) => setFormData({ ...formData, mediaType: e.target.value as MediaType })}
                         >
-                          <option value="image">صورة (Image)</option>
-                          <option value="video">فيديو (MP4 Video)</option>
+                          <option value="video">🎬 مقطع فيديو (Video)</option>
+                          <option value="image">🖼️ صورة (Image)</option>
                         </select>
                       </div>
                     </div>
 
+                    {/* Visual Detection Confirmation Badge */}
+                    {formData.mediaUrl && (
+                      <div className="flex items-center gap-2 pt-1 text-xs">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[11px]">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>
+                            تم التعرف الذكي: {formData.mediaType === "video" ? "مقطع فيديو ترويجي" : "صورة فائقة الدقة"}
+                            {detectedMediaPlatform ? ` (${detectedMediaPlatform})` : ""}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+
                     {/* Quick upload trigger right inside form */}
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -746,7 +1013,7 @@ export default function AdminDashboardArabic() {
                         className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 flex items-center gap-1.5 transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5 text-sky-400" />
-                        <span>{isUploading ? uploadProgress : "رفع ملف فيديو أو صورة من جهازك"}</span>
+                        <span>{isUploading ? uploadProgress : "رفع مقطع فيديو أو صورة مباشرة من جهازك"}</span>
                       </button>
                     </div>
                   </div>
@@ -754,7 +1021,7 @@ export default function AdminDashboardArabic() {
                   {/* Description */}
                   <div>
                     <label className="block text-xs font-bold text-gray-300 mb-1.5">
-                      الوصف / نص التشويق (يظهر في بطاقة تليجرام و X)
+                      الوصف التشويقي (يظهر في بطاقة تليجرام ومنصة X)
                     </label>
                     <textarea
                       rows={2}
@@ -783,8 +1050,9 @@ export default function AdminDashboardArabic() {
                       </label>
                       <input
                         type="text"
-                        placeholder={settings.defaultAds?.smartlink ? "مفعل تلقائياً: كود Smartlink من الإعدادات" : "https://t.me/your_channel"}
-                        className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono"
+                        placeholder={settings.defaultAds?.smartlink ? "مفعل تلقائياً: Smartlink من الإعدادات" : "https://t.me/your_channel"}
+                        className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
+                        dir="ltr"
                         value={formData.ctaLink || ""}
                         onChange={(e) => setFormData({ ...formData, ctaLink: e.target.value })}
                       />
@@ -792,12 +1060,12 @@ export default function AdminDashboardArabic() {
                   </div>
 
                   {/* Adsterra Integration Selector */}
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-emerald-500/20 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-emerald-400" />
                         <span className="text-xs font-bold text-gray-200">
-                          نظام إعلانات Adsterra
+                          نظام إعلانات Adsterra للصفحة
                         </span>
                       </div>
                       <label className="flex items-center gap-2 text-xs font-semibold text-emerald-300 cursor-pointer">
@@ -807,12 +1075,12 @@ export default function AdminDashboardArabic() {
                           onChange={(e) => setFormData({ ...formData, useDefaultAds: e.target.checked })}
                           className="w-4 h-4 accent-emerald-500 rounded"
                         />
-                        <span>استخدام أكواد Adsterra الافتراضية للموقع</span>
+                        <span>تطبيق إعلانات Adsterra الافتراضية للموقع</span>
                       </label>
                     </div>
 
                     <p className="text-[11px] text-gray-400 leading-relaxed">
-                      عند تفعيل الخيار أعلاه، ستطبق جميع الأكواد التي قمت بضبطها في تبويب <strong>&quot;أكواد Adsterra الافتراضية&quot;</strong> (Social Bar، Popunder، Smartlink، Banners) تلقائياً على هذه الصفحة دون الحاجة لإعادة لصقها.
+                      عند التفعيل، ستعمل جميع الوحدات الإعلانية المضبوطة في تبويب <strong>&quot;إدارة إعلانات Adsterra&quot;</strong> تلقائياً مع إمكانية إيقاف أو تعديل أي وحدة بنقرة زر واحدة.
                     </p>
 
                     <button
@@ -827,7 +1095,7 @@ export default function AdminDashboardArabic() {
                       <div className="pt-2 space-y-3 border-t border-white/10">
                         <div>
                           <label className="block text-[11px] font-bold text-gray-300 mb-1">
-                            كود بانر مخصص (300x250)
+                            كود بانر مخصص لهذه الصفحة فقط (300x250)
                           </label>
                           <textarea
                             rows={2}
@@ -857,21 +1125,21 @@ export default function AdminDashboardArabic() {
                     ) : (
                       <Sparkles className="w-5 h-5" />
                     )}
-                    <span>حفظ ونشر صفحة الهبوط وتفعيل الرابط المخصص</span>
+                    <span>{editingSlug ? "حفظ التعديلات وتحديث صفحة الهبوط" : "حفظ ونشر صفحة الهبوط وتفعيل الرابط المخصص"}</span>
                   </button>
                 </form>
               </div>
             </div>
 
-            {/* Right Column: Interactive Smartphone Live Simulator */}
-            <div className="lg:col-span-5 flex flex-col items-center">
+            {/* Right Column: Live Smartphone Simulator with SmartMediaPlayer */}
+            <div className="lg:col-span-5 flex flex-col items-center sticky top-20">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-400 mb-3">
                 <Smartphone className="w-4 h-4 text-sky-400" />
-                <span>محاكي الهاتف المباشر (Live Mobile Preview)</span>
+                <span>المشغل المباشر على الهاتف (Mobile & Desktop Live Player)</span>
               </div>
 
               {/* Smartphone Frame */}
-              <div className="w-[310px] sm:w-[330px] rounded-[42px] border-[6px] border-slate-700 bg-[#070a12] shadow-2xl overflow-hidden p-3 relative flex flex-col">
+              <div className="w-[310px] sm:w-[340px] rounded-[44px] border-[6px] border-slate-700 bg-[#070a12] shadow-2xl overflow-hidden p-3 relative flex flex-col">
                 {/* Notch */}
                 <div className="w-24 h-4 bg-slate-800 rounded-full mx-auto mb-2" />
 
@@ -880,7 +1148,7 @@ export default function AdminDashboardArabic() {
                   
                   {/* Header in simulator */}
                   <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
-                    <span className="text-[10px] font-black text-brand-400">XTREN VIP</span>
+                    <span className="text-[10px] font-black text-brand-400">XTREN VIP 4K</span>
                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">
                       بث حصري
                     </span>
@@ -896,35 +1164,37 @@ export default function AdminDashboardArabic() {
                     </p>
                   </div>
 
-                  {/* Media Screen */}
-                  <div className="w-full aspect-video rounded-xl overflow-hidden bg-black/80 border border-white/10 mb-3 relative flex items-center justify-center">
+                  {/* Smart Media Player Preview */}
+                  <div className="w-full mb-3">
                     {formData.mediaUrl ? (
-                      formData.mediaType === "video" ? (
-                        <video src={resolveMediaUrl(formData.mediaUrl)} controls className="w-full h-full object-cover" />
-                      ) : (
-                        <img src={resolveMediaUrl(formData.mediaUrl)} alt="Preview" className="w-full h-full object-cover" />
-                      )
+                      <SmartMediaPlayer
+                        key={`${formData.mediaUrl}-${formData.mediaType}`}
+                        mediaUrl={formData.mediaUrl}
+                        mediaType={formData.mediaType}
+                        title={formData.title}
+                        ctaText={formData.ctaText}
+                      />
                     ) : (
-                      <div className="text-gray-500 text-[10px] flex flex-col items-center gap-1">
-                        <ImageIcon className="w-5 h-5 text-gray-600" />
-                        <span>معاينة الوسائط ستظهر هنا</span>
+                      <div className="w-full aspect-video rounded-xl bg-black/80 border border-white/10 flex flex-col items-center justify-center text-gray-500 text-[10px] gap-1.5">
+                        <Video className="w-6 h-6 text-gray-600" />
+                        <span>المشغل الذكي سيعرض الفيديو أو الصورة هنا فور إدخال الرابط</span>
                       </div>
                     )}
                   </div>
 
                   {/* Simulated CTA Button */}
-                  <div className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-accent-500 to-rose-600 text-white font-bold text-xs shadow-md mb-2">
+                  <div className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-accent-500 to-rose-600 text-white font-bold text-xs shadow-md mb-2 truncate">
                     {formData.ctaText || "⚡ مشاهدة الفيديو كاملاً بجودة 4K"}
                   </div>
 
                   {/* Simulated Ad Container */}
                   <div className="w-full rounded-lg bg-emerald-950/40 border border-emerald-500/30 py-2 text-[9px] text-emerald-300 font-bold">
-                    إعلانات Adsterra (مفعلة تلقائياً)
+                    إعلانات Adsterra (مفعلة وتعمل بانتظام)
                   </div>
 
                   {/* Footer in simulator */}
                   <div className="text-[8px] text-gray-600 pt-2 border-t border-white/5 mt-2">
-                    © XTREN Media · رابط مشفر 100%
+                    © XTREN Media · مشغل آمن ومشفر 100%
                   </div>
                 </div>
               </div>
@@ -933,7 +1203,473 @@ export default function AdminDashboardArabic() {
           </div>
         )}
 
-        {/* TAB 2: MEDIA & FILE STORAGE MANAGER */}
+        {/* TAB 2: PUBLISHED PAGES MANAGER & EDITOR */}
+        {activeTab === "pages" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-emerald-400" />
+                الصفحات المنشورة في قاعدة البيانات ({pages.length})
+              </h2>
+              <button
+                onClick={loadAllData}
+                className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> تحديث القائمة
+              </button>
+            </div>
+
+            {pages.length === 0 ? (
+              <div className="glass-panel-luxury rounded-3xl p-12 text-center space-y-3 border border-white/10">
+                <p className="text-gray-400 text-sm">لا توجد أي صفحات منشورة بعد.</p>
+                <button
+                  onClick={() => setActiveTab("create")}
+                  className="btn-cyan-glow px-4 py-2 rounded-xl text-xs font-bold"
+                >
+                  إنشاء أول صفحة هبوط الآن
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {pages.map((p) => {
+                  const isTg = isBroadcasting === `tg-${p.slug}`;
+                  const isX = isBroadcasting === `x-${p.slug}`;
+
+                  return (
+                    <div
+                      key={p.slug}
+                      className="glass-panel-luxury rounded-2xl p-5 border border-white/10 hover:border-white/20 transition-all shadow-xl"
+                    >
+                      <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+                        <div className="w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-black shrink-0 relative border border-white/10">
+                          {p.mediaType === "video" ? (
+                            <div className="relative w-full h-full flex items-center justify-center">
+                              <video src={p.mediaUrl} className="w-full h-full object-cover" />
+                              <span className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <Video className="w-6 h-6 text-white/80" />
+                              </span>
+                            </div>
+                          ) : (
+                            <img src={p.mediaUrl} alt={p.title} className="w-full h-full object-cover" />
+                          )}
+                          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-bold text-gray-200 uppercase">
+                            {p.mediaType}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded">
+                              /p/{p.slug}
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                              إعلانات Adsterra مفعلة
+                            </span>
+                            <span className="text-[11px] text-gray-400 flex items-center gap-1 mr-auto">
+                              <Eye className="w-3.5 h-3.5 text-gray-400" />
+                              {p.views ? p.views.toLocaleString("ar-EG") : "0"} مشاهدة
+                            </span>
+                          </div>
+
+                          <h3 className="font-black text-base text-white">{p.title}</h3>
+                          <p className="text-xs text-gray-400 line-clamp-1">{p.description || "لا يوجد وصف"}</p>
+
+                          <div className="flex items-center gap-2 pt-2 flex-wrap">
+                            {/* Edit Button */}
+                            <button
+                              onClick={() => handleEditPage(p)}
+                              className="text-xs font-bold text-amber-300 hover:text-white flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-xl border border-amber-500/30 transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                              <span>تعديل الصفحة</span>
+                            </button>
+
+                            {/* Direct Preview Link */}
+                            <a
+                              href={`/p/${p.slug}`}
+                              target="_blank"
+                              className="text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
+                              <span>معاينة الرابط</span>
+                            </a>
+
+                            {/* Copy Link */}
+                            <button
+                              onClick={() => handleCopyLink(p.slug)}
+                              className="text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 transition-colors"
+                            >
+                              {copiedSlug === p.slug ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>تم النسخ!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-gray-400" />
+                                  <span>نسخ الرابط</span>
+                                </>
+                              )}
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              onClick={() => handleDeletePage(p.slug)}
+                              className="p-1.5 rounded-xl text-rose-400 hover:bg-rose-500/10 mr-auto transition-colors"
+                              title="حذف الصفحة"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Social Broadcast Toolbar */}
+                      <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-3">
+                        <button
+                          onClick={() => handleBroadcastTelegram(p)}
+                          disabled={isTg}
+                          className="btn-tg-ar px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 disabled:opacity-60 flex-1 sm:flex-none justify-center"
+                        >
+                          {isTg ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          <span>بث إلى قناة تيليجرام</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleBroadcastX(p)}
+                          disabled={isX}
+                          className="px-4 py-2 rounded-xl bg-black/80 hover:bg-black border border-white/20 text-xs font-bold text-white flex items-center gap-2 disabled:opacity-60 flex-1 sm:flex-none justify-center"
+                        >
+                          {isX ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Radio className="w-3.5 h-3.5 text-sky-400" />}
+                          <span>نشر على منصة X (تويتر)</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: ADSTERRA CODES MANAGER WITH EDIT, ADD & TOGGLE ON/OFF */}
+        {activeTab === "settings" && (
+          <div className="space-y-6">
+            
+            {/* Master Control Bar */}
+            <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl relative overflow-hidden space-y-6">
+              <div className="absolute top-0 left-0 w-80 h-80 bg-emerald-500/10 blur-[130px] pointer-events-none rounded-full" />
+
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                      <DollarSign className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-white">
+                        مركز إدارة إعلانات Adsterra (إضافة · تعديل · تشغيل وإيقاف)
+                      </h2>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        تحكم فوري وشامل في جميع الأكواد والوحدات الإعلانية مع إمكانية إيقاف أي إعلان دون حذف كوده.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0 flex-wrap">
+                  {/* Master Switch */}
+                  <button
+                    onClick={handleToggleMasterAds}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${
+                      masterAdsOn
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
+                        : "bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30"
+                    }`}
+                  >
+                    <Power className="w-4 h-4" />
+                    <span>{masterAdsOn ? "كافة الإعلانات: مفعلة 🟢" : "كافة الإعلانات: متوقفة مؤقتاً 🔴"}</span>
+                  </button>
+
+                  {/* Save Settings */}
+                  <button
+                    onClick={handleSaveSettings}
+                    className="btn-emerald-glow px-6 py-2.5 rounded-xl text-xs font-black shadow-lg"
+                  >
+                    حفظ وتثبيت كافة التعديلات الآن
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid of the 11 Adsterra Ad Formats with Individual On/Off Switches */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {ADSTERRA_SLOTS.map((slot) => {
+                  const currentCode = (settings.defaultAds as any)?.[slot.key] || "";
+                  const slotStatus = settings.defaultAds?.status?.[slot.key];
+                  // Default is active (true) unless explicitly false
+                  const isSlotActive = masterAdsOn && slotStatus !== false && Boolean(currentCode.trim());
+                  const isConfigured = Boolean(currentCode.trim());
+
+                  return (
+                    <div
+                      key={slot.key}
+                      className={`glass-card-subtle p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                        isSlotActive
+                          ? "border-emerald-500/40 bg-emerald-950/15 shadow-lg shadow-emerald-950/30"
+                          : isConfigured
+                          ? "border-amber-500/30 bg-amber-950/10 opacity-80"
+                          : "border-white/5 opacity-70"
+                      }`}
+                    >
+                      {/* Top Header of Card with Toggle Switch */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded">
+                            ID: {slot.id}
+                          </span>
+
+                          {/* Toggle ON/OFF Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAdSlot(slot.key)}
+                            disabled={!currentCode.trim()}
+                            title={isSlotActive ? "إيقاف الإعلان مؤقتاً" : "تشغيل الإعلان"}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                              isSlotActive
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${isSlotActive ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
+                            <span>{isSlotActive ? "نشط ويعمل" : "متوقف مؤقتاً"}</span>
+                          </button>
+                        </div>
+
+                        <h3 className="text-xs font-bold text-white leading-snug">
+                          {slot.name}
+                        </h3>
+
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                          <span className="px-1.5 py-0.5 rounded bg-white/5 font-medium text-brand-300">
+                            {slot.placement}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Code Textarea / Input */}
+                      <div className="space-y-1.5">
+                        {slot.type === "direct" ? (
+                          <input
+                            type="url"
+                            placeholder="https://... رابط الربح المباشر Smartlink"
+                            className="w-full glass-input-ar p-2.5 rounded-xl text-xs font-mono text-emerald-300 text-left"
+                            dir="ltr"
+                            value={currentCode}
+                            onChange={(e) =>
+                              setSettings({
+                                ...settings,
+                                defaultAds: {
+                                  ...(settings.defaultAds || {}),
+                                  [slot.key]: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        ) : (
+                          <textarea
+                            rows={3}
+                            placeholder="الصق كود الإعلان البرمجي هنا..."
+                            className="w-full glass-input-ar p-2.5 rounded-xl text-xs font-mono text-emerald-300 text-left"
+                            dir="ltr"
+                            value={currentCode}
+                            onChange={(e) =>
+                              setSettings({
+                                ...settings,
+                                defaultAds: {
+                                  ...(settings.defaultAds || {}),
+                                  [slot.key]: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        )}
+
+                        <p className="text-[10px] text-gray-400 leading-relaxed">
+                          {slot.desc}
+                        </p>
+                      </div>
+
+                      {/* Bottom Action Buttons */}
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+                        <span className="text-[10px] text-gray-500">
+                          {isSlotActive ? "🟢 مفعل في صفحات الهبوط" : "🔴 غير مفعل حالياً"}
+                        </span>
+
+                        {currentCode && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`هل أنت متأكد من مسح كود "${slot.name}"؟`)) {
+                                setSettings({
+                                  ...settings,
+                                  defaultAds: {
+                                    ...(settings.defaultAds || {}),
+                                    [slot.key]: "",
+                                  },
+                                });
+                              }
+                            }}
+                            className="text-rose-400 hover:text-rose-300 text-[10px] underline"
+                          >
+                            مسح الكود
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Save Bar */}
+              <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                <span className="text-xs text-gray-400">
+                  سيتم تطبيق أي تعديل أو إيقاف فورياً على جميع صفحات الهبوط الحالية والجديدة.
+                </span>
+                <button
+                  onClick={handleSaveSettings}
+                  className="btn-emerald-glow px-6 py-2.5 rounded-xl text-xs font-black shadow-lg"
+                >
+                  حفظ وتفعيل التعديلات
+                </button>
+              </div>
+            </div>
+
+            {/* Telegram & Twitter / X Integration Section */}
+            <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
+              <div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-sky-400" />
+                  إعدادات قنوات البث (تيليجرام ومنصة X)
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                {/* Telegram */}
+                <div className="glass-card-subtle p-5 rounded-2xl space-y-3.5 border border-white/5">
+                  <h3 className="font-bold text-sky-300 flex items-center gap-2 text-sm">
+                    <Send className="w-4 h-4 text-sky-400" /> إعدادات قناة تيليجرام
+                  </h3>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">Telegram Bot Token</label>
+                    <input
+                      type="password"
+                      placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWXyz"
+                      className="w-full glass-input-ar px-3.5 py-2 rounded-xl text-xs font-mono text-left"
+                      dir="ltr"
+                      value={settings.telegramBotToken || ""}
+                      onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">معرف القناة (Channel ID)</label>
+                    <input
+                      type="text"
+                      placeholder="@my_channel_username أو -1001234567890"
+                      className="w-full glass-input-ar px-3.5 py-2 rounded-xl text-xs font-mono text-left"
+                      dir="ltr"
+                      value={settings.telegramChannelId || ""}
+                      onChange={(e) => setSettings({ ...settings, telegramChannelId: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Twitter / X */}
+                <div className="glass-card-subtle p-5 rounded-2xl space-y-3.5 border border-white/5">
+                  <h3 className="font-bold text-gray-200 flex items-center gap-2 text-sm">
+                    <Radio className="w-4 h-4 text-white" /> مفاتيح منصة X (Twitter)
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">API Key</label>
+                      <input
+                        type="password"
+                        placeholder="API Key"
+                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono text-left"
+                        dir="ltr"
+                        value={settings.twitterApiKey || ""}
+                        onChange={(e) => setSettings({ ...settings, twitterApiKey: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">API Secret</label>
+                      <input
+                        type="password"
+                        placeholder="API Secret"
+                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono text-left"
+                        dir="ltr"
+                        value={settings.twitterApiKeySecret || ""}
+                        onChange={(e) => setSettings({ ...settings, twitterApiKeySecret: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">Access Token</label>
+                      <input
+                        type="password"
+                        placeholder="Access Token"
+                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono text-left"
+                        dir="ltr"
+                        value={settings.twitterAccessToken || ""}
+                        onChange={(e) => setSettings({ ...settings, twitterAccessToken: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">Token Secret</label>
+                      <input
+                        type="password"
+                        placeholder="Token Secret"
+                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono text-left"
+                        dir="ltr"
+                        value={settings.twitterAccessTokenSecret || ""}
+                        onChange={(e) => setSettings({ ...settings, twitterAccessTokenSecret: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Base URL */}
+                <div className="md:col-span-2 glass-card-subtle p-5 rounded-2xl space-y-3.5 border border-white/5">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">
+                      رابط الموقع الأساسي (Base URL)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://your-domain.vercel.app"
+                      className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
+                      dir="ltr"
+                      value={settings.siteBaseUrl || ""}
+                      onChange={(e) => setSettings({ ...settings, siteBaseUrl: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleSaveSettings}
+                  className="btn-cyan-glow px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg"
+                >
+                  حفظ جميع الإعدادات
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 4: MEDIA & FILE STORAGE MANAGER */}
         {activeTab === "media" && (
           <div className="space-y-6">
             <div className="glass-panel-luxury rounded-3xl p-6 border border-white/10 shadow-xl">
@@ -1008,11 +1744,7 @@ export default function AdminDashboardArabic() {
                       <div className="pt-2 border-t border-white/10 flex items-center gap-1.5">
                         <button
                           onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              mediaUrl: file.url,
-                              mediaType: file.type === "video" ? "video" : "image",
-                            }));
+                            handleMediaUrlInput(file.url);
                             setActiveTab("create");
                             showNotification("success", `تم اختيار الملف (${file.name}) في النموذج!`);
                           }}
@@ -1046,508 +1778,6 @@ export default function AdminDashboardArabic() {
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* TAB 3: PUBLISHED PAGES MANAGER */}
-        {activeTab === "pages" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Layers className="w-5 h-5 text-emerald-400" />
-                الصفحات المنشورة في قاعدة البيانات ({pages.length})
-              </h2>
-              <button
-                onClick={loadAllData}
-                className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10"
-              >
-                <RefreshCw className="w-3.5 h-3.5" /> تحديث القائمة
-              </button>
-            </div>
-
-            {pages.length === 0 ? (
-              <div className="glass-panel-luxury rounded-3xl p-12 text-center space-y-3 border border-white/10">
-                <p className="text-gray-400 text-sm">لا توجد أي صفحات منشورة بعد.</p>
-                <button
-                  onClick={() => setActiveTab("create")}
-                  className="btn-cyan-glow px-4 py-2 rounded-xl text-xs font-bold"
-                >
-                  إنشاء أول صفحة هبوط الآن
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {pages.map((p) => {
-                  const isTg = isBroadcasting === `tg-${p.slug}`;
-                  const isX = isBroadcasting === `x-${p.slug}`;
-
-                  return (
-                    <div
-                      key={p.slug}
-                      className="glass-panel-luxury rounded-2xl p-5 border border-white/10 hover:border-white/20 transition-all shadow-xl"
-                    >
-                      <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                        <div className="w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-black shrink-0 relative border border-white/10">
-                          {p.mediaType === "video" ? (
-                            <div className="relative w-full h-full flex items-center justify-center">
-                              <video src={p.mediaUrl} className="w-full h-full object-cover" />
-                              <span className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <Video className="w-6 h-6 text-white/80" />
-                              </span>
-                            </div>
-                          ) : (
-                            <img src={p.mediaUrl} alt={p.title} className="w-full h-full object-cover" />
-                          )}
-                          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-bold text-gray-200 uppercase">
-                            {p.mediaType}
-                          </span>
-                        </div>
-
-                        <div className="flex-1 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-mono font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded">
-                              /p/{p.slug}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                              إعلانات Adsterra مفعلة
-                            </span>
-                            <span className="text-[11px] text-gray-400 flex items-center gap-1 mr-auto">
-                              <Eye className="w-3.5 h-3.5 text-gray-400" />
-                              {p.views ? p.views.toLocaleString("ar-EG") : "0"} مشاهدة
-                            </span>
-                          </div>
-
-                          <h3 className="font-black text-base text-white">{p.title}</h3>
-                          <p className="text-xs text-gray-400 line-clamp-1">{p.description || "لا يوجد وصف"}</p>
-
-                          <div className="flex items-center gap-2 pt-2">
-                            <a
-                              href={`/p/${p.slug}`}
-                              target="_blank"
-                              className="text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-                              <span>معاينة الرابط المباشر</span>
-                            </a>
-
-                            <button
-                              onClick={() => handleCopyLink(p.slug)}
-                              className="text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10"
-                            >
-                              {copiedSlug === p.slug ? (
-                                <>
-                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                  <span>تم النسخ!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3.5 h-3.5 text-gray-400" />
-                                  <span>نسخ الرابط</span>
-                                </>
-                              )}
-                            </button>
-
-                            <button
-                              onClick={() => handleDeletePage(p.slug)}
-                              className="p-1.5 rounded-xl text-rose-400 hover:bg-rose-500/10 mr-auto"
-                              title="حذف الصفحة"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center gap-3">
-                        <button
-                          onClick={() => handleBroadcastTelegram(p)}
-                          disabled={isTg}
-                          className="btn-tg-ar px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 disabled:opacity-60 flex-1 sm:flex-none justify-center"
-                        >
-                          {isTg ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                          <span>بث إلى قناة تيليجرام</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleBroadcastX(p)}
-                          disabled={isX}
-                          className="px-4 py-2 rounded-xl bg-black/80 hover:bg-black border border-white/20 text-xs font-bold text-white flex items-center gap-2 disabled:opacity-60 flex-1 sm:flex-none justify-center"
-                        >
-                          {isX ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Radio className="w-3.5 h-3.5 text-sky-400" />}
-                          <span>نشر على منصة X (تويتر)</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 4: ADSTERRA CODES MANAGER & PLATFORMS SETTINGS */}
-        {activeTab === "settings" && (
-          <div className="space-y-6">
-            
-            {/* Adsterra Default Codes Section (Matching the User's Screenshot Exactly!) */}
-            <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-emerald-500/20 shadow-2xl space-y-6 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-80 h-80 bg-emerald-500/10 blur-[130px] pointer-events-none rounded-full" />
-              
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-                <div>
-                  <h2 className="text-lg font-black text-white flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-emerald-400" />
-                    مدير أكواد إعلانات Adsterra الافتراضية لجميع الصفحات
-                  </h2>
-                  <p className="text-xs text-gray-400 mt-1">
-                    ضع أكواد وحداتك الإعلانية من لوحة تحكم Adsterra هنا؛ وسيتم تطبيقها وتشغيلها تلقائياً على <strong>كل صفحات الهبوط</strong>.
-                  </p>
-                </div>
-                <button
-                  onClick={handleSaveSettings}
-                  className="btn-emerald-glow px-6 py-2.5 rounded-xl text-xs font-black shadow-lg shrink-0"
-                >
-                  حفظ وتفعيل الأكواد لجميع الصفحات
-                </button>
-              </div>
-
-              {/* Grid of the 9 Adsterra Ad Formats */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 text-sm">
-                
-                {/* 1. Social Bar (30673789) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      1. كود Social Bar (SocialBar_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673789</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="الصق سكريبت الـ Social Bar هنا..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.socialBar || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), socialBar: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">يظهر كإشعار عائم تفاعلي عالي الـ CTR على الهاتف والحاسوب.</p>
-                </div>
-
-                {/* 2. Popunder (30673794) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-400" />
-                      2. كود Popunder (Popunder_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673794</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="الصق سكريبت الـ Popunder هنا..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.popunder || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), popunder: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">يفتح نافذة إعلانية منبثقة عند أول لمسة للزائر لأعلى CPM.</p>
-                </div>
-
-                {/* 3. Smartlink (30673795) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-emerald-500/20 bg-emerald-950/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      3. رابط Smartlink المباشر (Smartlink_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673795</span>
-                  </div>
-                  <input
-                    type="url"
-                    placeholder="https://beta.smartlink... أو رابط الربح المباشر"
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.smartlink || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), smartlink: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-300 font-medium">يتم ربطه تلقائياً بزر المشاهدة والتحويل في كل الصفحات!</p>
-                </div>
-
-                {/* 4. Banner 300x250 (30673796) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-400" />
-                      4. بانر 300x250 (300x250_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673796</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="كود Banner 300x250 (أسفل الفيديو مباشرة)..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.banner300x250 || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), banner300x250: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">يظهر تحت مشغل الفيديو مباشرة (أكثر مكان يجلب نقرات).</p>
-                </div>
-
-                {/* 5. Banner 728x90 (30673801) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-purple-400" />
-                      5. بانر 728x90 (728x90_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673801</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="كود Banner 728x90 (لشاشات الكمبيوتر)..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.banner728x90 || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), banner728x90: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">يظهر أعلى الصفحة للزوار المتصفحين من الكمبيوتر واللابتوب.</p>
-                </div>
-
-                {/* 6. Banner 320x50 Mobile (30673800) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                      6. بانر موبايل 320x50 (320x50_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673800</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="كود Banner 320x50 (للهواتف الذكية)..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.banner320x50 || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), banner320x50: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">بانر علوي متجاوب ومخصص تماماً لشاشات الهواتف الذكية.</p>
-                </div>
-
-                {/* 7. Banner 468x60 (30673797) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-gray-400" />
-                      7. بانر 468x60 (468x60_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673797</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="كود Banner 468x60..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.banner468x60 || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), banner468x60: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">يظهر أسفل الصفحة للأجهزة اللوحية والموبايل العريض.</p>
-                </div>
-
-                {/* 8. Banner 160x600 (30673799) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-400" />
-                      8. بانر جانبي 160x600 (160x600_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673799</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="كود Skyscraper Banner 160x600..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.banner160x600 || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), banner160x600: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">بانر جانبي طولي يثبت على جانب الشاشة في أجهزة الكمبيوتر.</p>
-                </div>
-
-                {/* 9. Banner 160x300 (30673798) */}
-                <div className="glass-card-subtle p-4 rounded-2xl border border-white/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-teal-300 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-teal-400" />
-                      9. بانر جانبي 160x300 (160x300_1)
-                    </label>
-                    <span className="text-[10px] text-gray-500 font-mono">ID: 30673798</span>
-                  </div>
-                  <textarea
-                    rows={3}
-                    placeholder="كود Banner 160x300..."
-                    className="w-full glass-input-ar p-3 rounded-xl text-xs font-mono text-emerald-300"
-                    value={settings.defaultAds?.banner160x300 || ""}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        defaultAds: { ...(settings.defaultAds || {}), banner160x300: e.target.value },
-                      })
-                    }
-                  />
-                  <p className="text-[10px] text-gray-400">بانر جانبي بديل متوسط الحجم للشاشات الجانبية.</p>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Telegram & Twitter / X Integration Section */}
-            <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
-              <div>
-                <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-sky-400" />
-                  إعدادات قنوات البث (تيليجرام ومنصة X)
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                {/* Telegram */}
-                <div className="glass-card-subtle p-5 rounded-2xl space-y-3.5 border border-white/5">
-                  <h3 className="font-bold text-sky-300 flex items-center gap-2 text-sm">
-                    <Send className="w-4 h-4 text-sky-400" /> إعدادات قناة تيليجرام
-                  </h3>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1">Telegram Bot Token</label>
-                    <input
-                      type="password"
-                      placeholder="123456789:ABCdefGhIJKlmNoPQRstuVWXyz"
-                      className="w-full glass-input-ar px-3.5 py-2 rounded-xl text-xs font-mono"
-                      value={settings.telegramBotToken || ""}
-                      onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1">معرف القناة (Channel ID)</label>
-                    <input
-                      type="text"
-                      placeholder="@my_channel_username أو -1001234567890"
-                      className="w-full glass-input-ar px-3.5 py-2 rounded-xl text-xs font-mono"
-                      value={settings.telegramChannelId || ""}
-                      onChange={(e) => setSettings({ ...settings, telegramChannelId: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Twitter / X */}
-                <div className="glass-card-subtle p-5 rounded-2xl space-y-3.5 border border-white/5">
-                  <h3 className="font-bold text-gray-200 flex items-center gap-2 text-sm">
-                    <Radio className="w-4 h-4 text-white" /> مفاتيح منصة X (Twitter)
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1">API Key</label>
-                      <input
-                        type="password"
-                        placeholder="API Key"
-                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono"
-                        value={settings.twitterApiKey || ""}
-                        onChange={(e) => setSettings({ ...settings, twitterApiKey: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1">API Secret</label>
-                      <input
-                        type="password"
-                        placeholder="API Secret"
-                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono"
-                        value={settings.twitterApiKeySecret || ""}
-                        onChange={(e) => setSettings({ ...settings, twitterApiKeySecret: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1">Access Token</label>
-                      <input
-                        type="password"
-                        placeholder="Access Token"
-                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono"
-                        value={settings.twitterAccessToken || ""}
-                        onChange={(e) => setSettings({ ...settings, twitterAccessToken: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1">Token Secret</label>
-                      <input
-                        type="password"
-                        placeholder="Token Secret"
-                        className="w-full glass-input-ar px-3 py-2 rounded-xl text-xs font-mono"
-                        value={settings.twitterAccessTokenSecret || ""}
-                        onChange={(e) => setSettings({ ...settings, twitterAccessTokenSecret: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Base URL */}
-                <div className="md:col-span-2 glass-card-subtle p-5 rounded-2xl space-y-3.5 border border-white/5">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1">
-                      رابط الموقع الأساسي (Base URL)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://your-domain.vercel.app"
-                      className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono"
-                      value={settings.siteBaseUrl || ""}
-                      onChange={(e) => setSettings({ ...settings, siteBaseUrl: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <button
-                  onClick={handleSaveSettings}
-                  className="btn-cyan-glow px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg"
-                >
-                  حفظ جميع الإعدادات
-                </button>
-              </div>
-            </div>
-
           </div>
         )}
 

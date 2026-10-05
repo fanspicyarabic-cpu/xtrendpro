@@ -5,63 +5,138 @@ import React, { useEffect, useRef } from "react";
 interface AdsterraContainerProps {
   adCode?: string;
   className?: string;
+  slotName?: string;
+  enabled?: boolean;
 }
 
-export const AdsterraContainer: React.FC<AdsterraContainerProps> = ({ adCode, className = "" }) => {
+export const AdsterraContainer: React.FC<AdsterraContainerProps> = ({
+  adCode,
+  className = "",
+  slotName,
+  enabled = true,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useEffect(() => {
-    if (!adCode || !containerRef.current) return;
-
-    const container = containerRef.current;
-    container.innerHTML = ""; // Clear existing
-
-    // Parse the HTML string
-    const range = document.createRange();
-    range.selectNode(container);
-    const fragment = range.createContextualFragment(adCode);
-
-    // Extract all scripts to re-create them so the browser executes them
-    const scripts = fragment.querySelectorAll("script");
-    const nonScripts = fragment.cloneNode(true) as DocumentFragment;
-    nonScripts.querySelectorAll("script").forEach((s) => s.remove());
-
-    // Append non-script HTML elements first
-    container.appendChild(nonScripts);
-
-    // Re-create and append scripts in order
-    scripts.forEach((oldScript) => {
-      const newScript = document.createElement("script");
-      Array.from(oldScript.attributes).forEach((attr) => {
-        newScript.setAttribute(attr.name, attr.value);
-      });
-      if (oldScript.innerHTML) {
-        newScript.innerHTML = oldScript.innerHTML;
-      }
-      container.appendChild(newScript);
-    });
-
-    return () => {
-      if (container) {
-        container.innerHTML = "";
-      }
-    };
-  }, [adCode]);
-
-  if (!adCode || !adCode.trim()) {
+  // If disabled or empty, return null immediately
+  if (!enabled || !adCode || !adCode.trim()) {
     return null;
   }
 
-  return (
-    <div className={`adsterra-wrapper w-full flex flex-col items-center justify-center my-4 overflow-hidden ${className}`}>
-      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-1">
-        Sponsored / Advertisement
+  const cleanCode = adCode.trim();
+
+  // Detect if this is a Banner script with atOptions (requires isolated iframe to prevent global atOptions collision and document.write issues)
+  const isBannerWithAtOptions = cleanCode.includes("atOptions") || cleanCode.includes("invoke.js");
+
+  // Determine banner dimensions from atOptions if present
+  let width = 300;
+  let height = 250;
+
+  if (isBannerWithAtOptions) {
+    const widthMatch = cleanCode.match(/['"]width['"]\s*:\s*(\d+)/);
+    const heightMatch = cleanCode.match(/['"]height['"]\s*:\s*(\d+)/);
+    if (widthMatch && widthMatch[1]) width = parseInt(widthMatch[1], 10);
+    if (heightMatch && heightMatch[1]) height = parseInt(heightMatch[1], 10);
+  }
+
+  // Effect for non-banner scripts (Social Bar, Popunder, floating widgets that need top window)
+  useEffect(() => {
+    if (isBannerWithAtOptions || !containerRef.current) return;
+
+    const container = containerRef.current;
+    container.innerHTML = "";
+
+    try {
+      const range = document.createRange();
+      range.selectNode(container);
+      const fragment = range.createContextualFragment(cleanCode);
+
+      const scripts = fragment.querySelectorAll("script");
+      const nonScripts = fragment.cloneNode(true) as DocumentFragment;
+      nonScripts.querySelectorAll("script").forEach((s) => s.remove());
+
+      container.appendChild(nonScripts);
+
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement("script");
+        Array.from(oldScript.attributes).forEach((attr) => {
+          newScript.setAttribute(attr.name, attr.value);
+        });
+        if (oldScript.innerHTML) {
+          newScript.innerHTML = oldScript.innerHTML;
+        }
+        container.appendChild(newScript);
+      });
+    } catch (e) {
+      console.warn("Ad injection error:", e);
+    }
+
+    return () => {
+      if (container) container.innerHTML = "";
+    };
+  }, [cleanCode, isBannerWithAtOptions]);
+
+  // If Banner with atOptions, use isolated iframe with srcdoc
+  if (isBannerWithAtOptions) {
+    const srcDocContent = `
+      <!DOCTYPE html>
+      <html lang="ar">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <base target="_blank" />
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body {
+              width: 100%;
+              height: 100%;
+              background: transparent;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            }
+          </style>
+        </head>
+        <body>
+          ${cleanCode}
+        </body>
+      </html>
+    `;
+
+    return (
+      <div className={`adsterra-banner-slot flex flex-col items-center justify-center my-3 max-w-full overflow-hidden ${className}`}>
+        {slotName && (
+          <div className="text-[10px] text-gray-500 font-semibold tracking-wider mb-1 uppercase">
+            {slotName}
+          </div>
+        )}
+        <div
+          style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
+          className="relative flex items-center justify-center overflow-hidden rounded-xl bg-black/20"
+        >
+          <iframe
+            ref={iframeRef}
+            srcDoc={srcDocContent}
+            width={width}
+            height={height}
+            title={slotName || "Adsterra Banner"}
+            scrolling="no"
+            frameBorder="0"
+            className="border-0 overflow-hidden max-w-full"
+            style={{ width: `${width}px`, height: `${height}px`, maxWidth: "100%" }}
+          />
+        </div>
       </div>
-      <div
-        ref={containerRef}
-        className="adsterra-slot min-h-[50px] max-w-full flex items-center justify-center"
-      />
-    </div>
+    );
+  }
+
+  // Floating scripts (Popunder / Social Bar / Global tags)
+  return (
+    <div
+      ref={containerRef}
+      className={`adsterra-script-slot ${className}`}
+    />
   );
 };
 

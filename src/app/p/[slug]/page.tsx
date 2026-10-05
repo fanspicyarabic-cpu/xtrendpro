@@ -1,16 +1,19 @@
 import React from "react";
 import type { Metadata, ResolvingMetadata } from "next";
 import { getPageForServer } from "@/lib/firebaseAdmin";
-import { resolveMediaUrl } from "@/lib/mediaResolver";
+import { resolveMediaInfo } from "@/lib/mediaResolver";
+import { isAdActive } from "@/lib/types";
 import AdsterraContainer from "@/components/AdsterraContainer";
+import SmartMediaPlayer from "@/components/SmartMediaPlayer";
 import { 
   Eye, 
   Flame, 
   ShieldCheck, 
-  Sparkles, 
   ExternalLink, 
   CheckCircle,
-  Clock
+  Clock,
+  Sparkles,
+  Lock
 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,15 +41,14 @@ export async function generateMetadata(
   const title = page.title || "عرض حصري بجودة فائقة 4K";
   const description = page.description || "شاهد البث الكامل الحصري بجودة فائقة الوضوح. متاح لفترة محدودة الآن.";
   const rawMediaUrl = page.mediaUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200";
-  const mediaUrl = resolveMediaUrl(rawMediaUrl);
-  const isVideo = page.mediaType === "video";
+  const mediaInfo = resolveMediaInfo(rawMediaUrl);
+  const isVideo = page.mediaType === "video" || mediaInfo.kind === "video" || mediaInfo.kind === "embed";
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app";
 
-  // Telegram, Twitter, WhatsApp preview thumbnail
   const previewThumbnail = isVideo
-    ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200"
-    : mediaUrl;
+    ? mediaInfo.posterUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200"
+    : mediaInfo.url;
 
   return {
     title: `${title} | منصة XTREN`,
@@ -70,7 +72,7 @@ export async function generateMetadata(
       videos: isVideo
         ? [
             {
-              url: mediaUrl,
+              url: mediaInfo.url,
               width: 1280,
               height: 720,
               type: "video/mp4",
@@ -87,7 +89,7 @@ export async function generateMetadata(
         ? [
             {
               playerUrl: `/p/${slug}`,
-              streamUrl: mediaUrl,
+              streamUrl: mediaInfo.url,
               width: 1280,
               height: 720,
             },
@@ -97,7 +99,7 @@ export async function generateMetadata(
   };
 }
 
-// 2. Dynamic Arabic Landing Page with Multi-Zone Adsterra Placements
+// 2. Dynamic Arabic Landing Page with Smart Player & Multi-Zone Adsterra Placements
 export default async function DynamicLandingPageArabic({ params }: PageProps) {
   const { slug } = params;
   const page = await getPageForServer(slug);
@@ -126,31 +128,47 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
     );
   }
 
-  const isVideo = page.mediaType === "video";
-  const views = page.views ? page.views.toLocaleString("ar-EG") : "3,840";
+  const views = page.views ? page.views.toLocaleString("ar-EG") : "4,280";
   const ads = page.ads || {};
 
-  // Destination CTA Link (Smartlink priority if set)
-  const targetCtaLink = ads.smartlink || page.ctaLink || "#ad-placement";
-  const resolvedMedia = resolveMediaUrl(page.mediaUrl);
+  // Check which ads are enabled
+  const showSocialBar = isAdActive(ads, "socialBar");
+  const showPopunder = isAdActive(ads, "popunder");
+  const showBanner728 = isAdActive(ads, "banner728x90");
+  const showBanner320 = isAdActive(ads, "banner320x50");
+  const showBanner468 = isAdActive(ads, "banner468x60");
+  const showBanner300 = isAdActive(ads, "banner300x250");
+  const showBanner160_600 = isAdActive(ads, "banner160x600");
+  const showBanner160_300 = isAdActive(ads, "banner160x300");
+  const showNative = isAdActive(ads, "nativeBanner");
+  const showCustomAd = isAdActive(ads, "customAd") || Boolean(page.adCode && isAdActive(ads, "customAd") !== false);
+
+  // Target CTA Link (Smartlink priority if enabled, else ctaLink)
+  const isSmartlinkActive = isAdActive(ads, "smartlink");
+  const targetCtaLink = (isSmartlinkActive && ads.smartlink) ? ads.smartlink : (page.ctaLink || "#ad-placement");
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#070a12] text-white flex flex-col items-center justify-between relative selection:bg-accent-500 selection:text-white" dir="rtl">
-      {/* 1. Global Popunder Script Execution */}
-      {ads.popunder && <AdsterraContainer adCode={ads.popunder} className="hidden" />}
+      
+      {/* 1. Global Popunder Script Execution (If Active) */}
+      {showPopunder && ads.popunder && (
+        <AdsterraContainer adCode={ads.popunder} enabled={true} className="hidden" />
+      )}
 
-      {/* 2. Global Social Bar Script Execution */}
-      {ads.socialBar && <AdsterraContainer adCode={ads.socialBar} className="hidden" />}
+      {/* 2. Global Social Bar Script Execution (If Active) */}
+      {showSocialBar && ads.socialBar && (
+        <AdsterraContainer adCode={ads.socialBar} enabled={true} className="hidden" />
+      )}
 
-      {/* Dynamic Ambient Background Lighting (Contained to prevent any horizontal overflow on mobile) */}
+      {/* Dynamic Ambient Background Glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-10 right-1/4 w-72 sm:w-96 h-72 sm:h-96 bg-brand-500/10 blur-[100px] sm:blur-[140px] rounded-full" />
         <div className="absolute bottom-20 left-1/4 w-72 sm:w-96 h-72 sm:h-96 bg-accent-500/15 blur-[100px] sm:blur-[140px] rounded-full" />
       </div>
 
-      {/* Top Header */}
+      {/* Top Professional Header */}
       <header className="w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
             <span className="font-black text-base sm:text-lg tracking-wide bg-gradient-to-l from-brand-400 via-sky-200 to-accent-500 bg-clip-text text-transparent truncate">
@@ -166,32 +184,50 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
         </div>
       </header>
 
-      {/* 3. Top Banner Slot (728x90 Desktop / 320x50 or 468x60 Mobile) */}
-      <div className="w-full max-w-4xl px-3 sm:px-4 pt-3 flex flex-col items-center justify-center overflow-hidden">
-        {ads.banner728x90 && (
-          <div className="hidden md:block w-full text-center">
-            <AdsterraContainer adCode={ads.banner728x90} />
-          </div>
-        )}
-        {ads.banner320x50 && (
-          <div className="block md:hidden w-full text-center">
-            <AdsterraContainer adCode={ads.banner320x50} />
-          </div>
-        )}
-        {!ads.banner320x50 && ads.banner468x60 && (
-          <div className="block md:hidden w-full text-center">
-            <AdsterraContainer adCode={ads.banner468x60} />
-          </div>
-        )}
-      </div>
+      {/* 3. DEDICATED TOP AD ZONE (Responsive Desktop 728x90 / Mobile 320x50 / Tablet 468x60) */}
+      {(showBanner728 || showBanner320 || showBanner468) && (
+        <section aria-label="Top Ad Placement" className="w-full max-w-4xl px-3 sm:px-4 pt-3 flex flex-col items-center justify-center overflow-hidden z-10">
+          {showBanner728 && ads.banner728x90 && (
+            <div className="hidden md:block w-full text-center">
+              <AdsterraContainer
+                adCode={ads.banner728x90}
+                slotName="إعلان ممول (728x90)"
+                enabled={true}
+              />
+            </div>
+          )}
+          {showBanner320 && ads.banner320x50 && (
+            <div className="block md:hidden w-full text-center">
+              <AdsterraContainer
+                adCode={ads.banner320x50}
+                slotName="إعلان ممول (320x50)"
+                enabled={true}
+              />
+            </div>
+          )}
+          {!showBanner320 && showBanner468 && ads.banner468x60 && (
+            <div className="block md:hidden w-full text-center">
+              <AdsterraContainer
+                adCode={ads.banner468x60}
+                slotName="إعلان ممول (468x60)"
+                enabled={true}
+              />
+            </div>
+          )}
+        </section>
+      )}
 
-      {/* Main Content Container with Sidebars */}
+      {/* Main Content Layout with Sidebars */}
       <div className="w-full max-w-6xl px-3 sm:px-4 py-4 flex-1 flex items-start justify-center gap-6 z-10 overflow-hidden">
         
-        {/* Right Desktop Sidebar Banner (160x600 or 160x300) */}
-        {(ads.banner160x600 || ads.banner160x300) && (
-          <aside className="hidden lg:flex flex-col items-center w-44 shrink-0 sticky top-20">
-            <AdsterraContainer adCode={ads.banner160x600 || ads.banner160x300} />
+        {/* DEDICATED RIGHT SIDEBAR AD (Desktop Skyscraper 160x600 or 160x300) */}
+        {(showBanner160_600 || showBanner160_300) && (
+          <aside aria-label="Sidebar Ad Right" className="hidden lg:flex flex-col items-center w-44 shrink-0 sticky top-20">
+            <AdsterraContainer
+              adCode={showBanner160_600 ? ads.banner160x600 : ads.banner160x300}
+              slotName={showBanner160_600 ? "بانر جانبي (160x600)" : "بانر جانبي (160x300)"}
+              enabled={true}
+            />
           </aside>
         )}
 
@@ -207,7 +243,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                محتوى معتمد ومؤكد
+                محتوى مؤكد وجاهز للتشغيل
               </span>
             </div>
 
@@ -222,45 +258,18 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
             )}
           </div>
 
-          {/* Media Frame (High-Res Player or Image) */}
-          <div className="w-full relative rounded-2xl overflow-hidden glass-panel-luxury border border-white/15 shadow-2xl group mb-5 aspect-video bg-black flex items-center justify-center max-h-[70vh]">
-            {isVideo ? (
-              <video
-                key={resolvedMedia}
-                controls
-                autoPlay
-                playsInline
-                muted
-                preload="auto"
-                controlsList="nodownload"
-                className="w-full h-full object-contain rounded-2xl"
-              >
-                <source src={resolvedMedia} type="video/mp4" />
-                متصفحك لا يدعم تشغيل هذا الفيديو.
-              </video>
-            ) : (
-              <div className="relative w-full h-full flex items-center justify-center bg-black/60">
-                <img
-                  src={resolvedMedia}
-                  alt={page.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30 pointer-events-none" />
-                <div className="absolute bottom-3 right-3 left-3 flex items-center justify-between text-xs text-white/90 pointer-events-none">
-                  <span className="flex items-center gap-1.5 bg-black/70 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 font-medium">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    جودة أصلية Ultra HD 4K
-                  </span>
-                  <span className="bg-rose-600 font-extrabold px-2.5 py-0.5 rounded text-[11px] uppercase tracking-wider">
-                    حصري للمشتركين
-                  </span>
-                </div>
-              </div>
-            )}
+          {/* ULTRA HIGH-PERFORMANCE SMART MEDIA PLAYER */}
+          <div className="w-full mb-5">
+            <SmartMediaPlayer
+              mediaUrl={page.mediaUrl}
+              mediaType={page.mediaType}
+              title={page.title}
+              ctaLink={targetCtaLink}
+              ctaText={page.ctaText}
+            />
           </div>
 
-          {/* 4. High Conversion CTA Button (Direct Link / Smartlink) */}
+          {/* HIGH CONVERSION CALL TO ACTION (CTA) BUTTON */}
           <div className="w-full flex flex-col items-center gap-3 mb-5 px-1 sm:px-0">
             <a
               href={targetCtaLink}
@@ -272,6 +281,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
               <span className="truncate">{page.ctaText || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن"}</span>
               <ExternalLink className="w-4 h-4 mr-1 opacity-80 shrink-0" />
             </a>
+            
             <div className="flex items-center justify-center gap-3 sm:gap-4 text-[11px] sm:text-xs text-gray-400 flex-wrap">
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -282,48 +292,77 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 بث فوري بدون تحميل
               </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-sky-400" />
+                وصول غير محدود
+              </span>
             </div>
           </div>
 
-          {/* 5. Middle Banner Slot (Banner 300x250) */}
-          {ads.banner300x250 && (
-            <div className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 flex flex-col items-center overflow-hidden">
-              <div className="text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-wider">
-                إعلان مدعوم (Banner 300x250)
-              </div>
-              <AdsterraContainer adCode={ads.banner300x250} />
+          {/* 4. DEDICATED UNDER-VIDEO AD ZONE (Banner 300x250) - Highest CTR Spot */}
+          {showBanner300 && ads.banner300x250 && (
+            <div className="w-full glass-card-subtle rounded-2xl p-4 border border-emerald-500/20 bg-emerald-950/10 my-3 flex flex-col items-center overflow-hidden">
+              <AdsterraContainer
+                adCode={ads.banner300x250}
+                slotName="مكان مخصص للإعلان (Banner 300x250)"
+                enabled={true}
+              />
             </div>
           )}
 
-          {/* 6. Legacy / Custom Fallback Ad Code */}
-          {page.adCode && !ads.banner300x250 && (
-            <div id="ad-placement" className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 overflow-hidden">
-              <AdsterraContainer adCode={page.adCode} />
-            </div>
-          )}
-
-          {/* 7. Bottom Banner Slot (468x60 or 728x90) */}
-          {ads.banner468x60 && (
+          {/* 5. DEDICATED NATIVE BANNER AD ZONE */}
+          {showNative && ads.nativeBanner && (
             <div className="w-full glass-card-subtle rounded-2xl p-3 border border-white/10 my-2 flex flex-col items-center overflow-hidden">
-              <AdsterraContainer adCode={ads.banner468x60} />
+              <AdsterraContainer
+                adCode={ads.nativeBanner}
+                slotName="إعلان مخصص Native Banner"
+                enabled={true}
+              />
+            </div>
+          )}
+
+          {/* 6. DEDICATED CUSTOM / FALLBACK AD ZONE */}
+          {showCustomAd && (ads.customAd || page.adCode) && !ads.banner300x250 && (
+            <div id="ad-placement" className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 overflow-hidden flex flex-col items-center">
+              <AdsterraContainer
+                adCode={ads.customAd || page.adCode}
+                slotName="محتوى إعلاني مخصص"
+                enabled={true}
+              />
+            </div>
+          )}
+
+          {/* 7. DEDICATED BOTTOM AD ZONE (Banner 468x60) */}
+          {showBanner468 && ads.banner468x60 && (
+            <div className="w-full glass-card-subtle rounded-2xl p-3 border border-white/10 my-2 flex flex-col items-center overflow-hidden">
+              <AdsterraContainer
+                adCode={ads.banner468x60}
+                slotName="بانر أسفل الصفحة (468x60)"
+                enabled={true}
+              />
             </div>
           )}
 
         </div>
 
-        {/* Left Desktop Sidebar Banner (160x600 or 160x300) */}
-        {(ads.banner160x600 || ads.banner160x300) && (
-          <aside className="hidden lg:flex flex-col items-center w-44 shrink-0 sticky top-20">
-            <AdsterraContainer adCode={ads.banner160x600 || ads.banner160x300} />
+        {/* DEDICATED LEFT SIDEBAR AD (Desktop Skyscraper 160x600 or 160x300) */}
+        {(showBanner160_600 || showBanner160_300) && (
+          <aside aria-label="Sidebar Ad Left" className="hidden lg:flex flex-col items-center w-44 shrink-0 sticky top-20">
+            <AdsterraContainer
+              adCode={showBanner160_600 ? ads.banner160x600 : ads.banner160x300}
+              slotName={showBanner160_600 ? "بانر جانبي (160x600)" : "بانر جانبي (160x300)"}
+              enabled={true}
+            />
           </aside>
         )}
 
       </div>
 
-      {/* Footer */}
-      <footer className="w-full border-t border-white/10 py-6 text-center text-xs text-gray-400 bg-slate-950/60 backdrop-blur-md z-10">
-        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© {new Date().getFullYear()} منصة XTREN · جميع الحقوق محفوظة.</p>
+      {/* Professional Footer */}
+      <footer className="w-full border-t border-white/10 py-6 text-center text-xs text-gray-400 bg-slate-950/60 backdrop-blur-md z-10 mt-6">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© {new Date().getFullYear()} منصة XTREN الحصرية · جميع الحقوق محفوظة.</p>
           <div className="flex items-center gap-4 text-gray-400">
             <span className="hover:text-white transition-colors cursor-pointer">إشعار الأمان وحقوق الملكية</span>
             <span className="hover:text-white transition-colors cursor-pointer">+18 الامتثال العمري</span>

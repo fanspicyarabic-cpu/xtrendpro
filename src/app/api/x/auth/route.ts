@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TwitterApi } from "twitter-api-v2";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const clientId = process.env.TWITTER_CLIENT_ID || "TWITTER_CLIENT_ID_PLACEHOLDER";
