@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LandingPageData } from "@/lib/types";
+import { resolveMediaUrl } from "@/lib/mediaResolver";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine target public URL
-    const origin = customSiteUrl || req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://xtren.vercel.app";
+    const origin = customSiteUrl || req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app";
     const pageUrl = `${origin}/p/${page.slug}`;
 
     // Format caption with HTML
@@ -57,6 +58,8 @@ export async function POST(req: NextRequest) {
       ],
     };
 
+    const resolvedMedia = resolveMediaUrl(page.mediaUrl || "");
+
     let telegramEndpoint = `https://api.telegram.org/bot${token}/sendMessage`;
     let payload: any = {
       chat_id: channel,
@@ -66,20 +69,20 @@ export async function POST(req: NextRequest) {
     };
 
     // If page has a valid direct image URL, use sendPhoto
-    if (page.mediaUrl && page.mediaType === "image") {
+    if (resolvedMedia && page.mediaType === "image") {
       telegramEndpoint = `https://api.telegram.org/bot${token}/sendPhoto`;
       payload = {
         chat_id: channel,
-        photo: page.mediaUrl,
+        photo: resolvedMedia,
         caption: caption,
         parse_mode: "HTML",
         reply_markup: inlineKeyboard,
       };
-    } else if (page.mediaUrl && page.mediaType === "video" && (page.mediaUrl.endsWith(".mp4") || page.mediaUrl.includes("video"))) {
+    } else if (resolvedMedia && page.mediaType === "video" && (resolvedMedia.endsWith(".mp4") || resolvedMedia.includes("video") || resolvedMedia.includes("cdn.videy.co"))) {
       telegramEndpoint = `https://api.telegram.org/bot${token}/sendVideo`;
       payload = {
         chat_id: channel,
-        video: page.mediaUrl,
+        video: resolvedMedia,
         caption: caption,
         parse_mode: "HTML",
         reply_markup: inlineKeyboard,

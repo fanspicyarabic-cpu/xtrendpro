@@ -1,5 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title: "منصة XTREN · نظام إدارة صفحات الهبوط والربح من Adsterra والبث التلقائي",
@@ -12,8 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className="dark">
+    <html lang="ar" dir="rtl" className="dark w-full max-w-full overflow-x-hidden">
       <head>
+        <meta name="referrer" content="no-referrer" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -21,7 +31,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased min-h-screen selection:bg-brand-500 selection:text-white bg-[#070a12] text-white">
+      <body className="antialiased min-h-screen selection:bg-brand-500 selection:text-white bg-[#070a12] text-white w-full max-w-full overflow-x-hidden relative">
         {children}
       </body>
     </html>

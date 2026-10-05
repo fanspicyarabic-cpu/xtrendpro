@@ -37,13 +37,19 @@ export async function generateMetadata(
 
   const title = page.title || "عرض حصري بجودة فائقة 4K";
   const description = page.description || "شاهد البث الكامل الحصري بجودة فائقة الوضوح. متاح لفترة محدودة الآن.";
-  const mediaUrl = page.mediaUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200";
+  const rawMediaUrl = page.mediaUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200";
+  const mediaUrl = resolveMediaUrl(rawMediaUrl);
   const isVideo = page.mediaType === "video";
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://xtren.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app";
+
+  // Telegram, Twitter, WhatsApp preview thumbnail
+  const previewThumbnail = isVideo
+    ? "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200"
+    : mediaUrl;
 
   return {
-    title: `${title} | منصة XTREN الحصرية`,
+    title: `${title} | منصة XTREN`,
     description: description,
     metadataBase: new URL(baseUrl),
     openGraph: {
@@ -51,11 +57,11 @@ export async function generateMetadata(
       description: description,
       url: `/p/${slug}`,
       siteName: "XTREN Media",
-      type: "video.other",
+      type: isVideo ? "video.other" : "website",
       locale: "ar_AR",
       images: [
         {
-          url: mediaUrl,
+          url: previewThumbnail,
           width: 1200,
           height: 630,
           alt: title,
@@ -76,7 +82,7 @@ export async function generateMetadata(
       card: isVideo ? "player" : "summary_large_image",
       title: title,
       description: description,
-      images: [mediaUrl],
+      images: [previewThumbnail],
       players: isVideo
         ? [
             {
@@ -98,7 +104,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
 
   if (!page) {
     return (
-      <main className="min-h-screen bg-[#070a12] text-white flex flex-col items-center justify-center p-6 text-center" dir="rtl">
+      <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#070a12] text-white flex flex-col items-center justify-center p-6 text-center" dir="rtl">
         <div className="glass-panel-luxury p-8 rounded-3xl max-w-md w-full border border-white/10 space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
             <Flame className="w-8 h-8" />
@@ -126,30 +132,33 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
 
   // Destination CTA Link (Smartlink priority if set)
   const targetCtaLink = ads.smartlink || page.ctaLink || "#ad-placement";
+  const resolvedMedia = resolveMediaUrl(page.mediaUrl);
 
   return (
-    <main className="min-h-screen bg-[#070a12] text-white flex flex-col items-center justify-between relative selection:bg-accent-500 selection:text-white" dir="rtl">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#070a12] text-white flex flex-col items-center justify-between relative selection:bg-accent-500 selection:text-white" dir="rtl">
       {/* 1. Global Popunder Script Execution */}
       {ads.popunder && <AdsterraContainer adCode={ads.popunder} className="hidden" />}
 
       {/* 2. Global Social Bar Script Execution */}
       {ads.socialBar && <AdsterraContainer adCode={ads.socialBar} className="hidden" />}
 
-      {/* Dynamic Ambient Background Lighting */}
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-500/10 blur-[140px] pointer-events-none rounded-full" />
-      <div className="absolute bottom-20 left-1/4 w-96 h-96 bg-accent-500/15 blur-[150px] pointer-events-none rounded-full" />
+      {/* Dynamic Ambient Background Lighting (Contained to prevent any horizontal overflow on mobile) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-10 right-1/4 w-72 sm:w-96 h-72 sm:h-96 bg-brand-500/10 blur-[100px] sm:blur-[140px] rounded-full" />
+        <div className="absolute bottom-20 left-1/4 w-72 sm:w-96 h-72 sm:h-96 bg-accent-500/15 blur-[100px] sm:blur-[140px] rounded-full" />
+      </div>
 
       {/* Top Header */}
-      <header className="w-full border-b border-white/10 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-50">
+      <header className="w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-            <span className="font-black text-lg tracking-wide bg-gradient-to-l from-brand-400 via-sky-200 to-accent-500 bg-clip-text text-transparent">
+            <span className="font-black text-base sm:text-lg tracking-wide bg-gradient-to-l from-brand-400 via-sky-200 to-accent-500 bg-clip-text text-transparent truncate">
               XTREN · عرض حصري
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 flex items-center gap-1.5 font-medium">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300 flex items-center gap-1.5 font-medium">
               <Eye className="w-3.5 h-3.5 text-brand-400" />
               <span>{views} مشاهدة نشطة</span>
             </span>
@@ -158,7 +167,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
       </header>
 
       {/* 3. Top Banner Slot (728x90 Desktop / 320x50 or 468x60 Mobile) */}
-      <div className="w-full max-w-4xl px-4 pt-4 flex flex-col items-center justify-center">
+      <div className="w-full max-w-4xl px-3 sm:px-4 pt-3 flex flex-col items-center justify-center overflow-hidden">
         {ads.banner728x90 && (
           <div className="hidden md:block w-full text-center">
             <AdsterraContainer adCode={ads.banner728x90} />
@@ -177,7 +186,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
       </div>
 
       {/* Main Content Container with Sidebars */}
-      <div className="w-full max-w-6xl px-4 py-4 flex-1 flex items-start justify-center gap-6 z-10">
+      <div className="w-full max-w-6xl px-3 sm:px-4 py-4 flex-1 flex items-start justify-center gap-6 z-10 overflow-hidden">
         
         {/* Right Desktop Sidebar Banner (160x600 or 160x300) */}
         {(ads.banner160x600 || ads.banner160x300) && (
@@ -187,10 +196,10 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
         )}
 
         {/* Center Main Media Column */}
-        <div className="w-full max-w-2xl flex flex-col items-center">
+        <div className="w-full max-w-2xl flex flex-col items-center mx-auto">
           
           {/* Badges & Title */}
-          <div className="w-full text-center space-y-3 mb-5">
+          <div className="w-full text-center space-y-2.5 mb-4">
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
                 <Flame className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
@@ -198,38 +207,44 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                محتوى معتمد بدون إعلانات مزعجة
+                محتوى معتمد ومؤكد
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-snug">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-snug px-1">
               {page.title}
             </h1>
 
             {page.description && (
-              <p className="text-xs sm:text-sm text-gray-300 max-w-lg mx-auto leading-relaxed">
+              <p className="text-xs sm:text-sm text-gray-300 max-w-lg mx-auto leading-relaxed px-2">
                 {page.description}
               </p>
             )}
           </div>
 
           {/* Media Frame (High-Res Player or Image) */}
-          <div className="w-full relative rounded-2xl overflow-hidden glass-panel-luxury border border-white/15 shadow-2xl group mb-5 aspect-video bg-black flex items-center justify-center">
+          <div className="w-full relative rounded-2xl overflow-hidden glass-panel-luxury border border-white/15 shadow-2xl group mb-5 aspect-video bg-black flex items-center justify-center max-h-[70vh]">
             {isVideo ? (
               <video
-                src={resolveMediaUrl(page.mediaUrl)}
+                key={resolvedMedia}
                 controls
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover rounded-2xl"
-              />
+                preload="auto"
+                controlsList="nodownload"
+                className="w-full h-full object-contain rounded-2xl"
+              >
+                <source src={resolvedMedia} type="video/mp4" />
+                متصفحك لا يدعم تشغيل هذا الفيديو.
+              </video>
             ) : (
               <div className="relative w-full h-full flex items-center justify-center bg-black/60">
                 <img
-                  src={resolveMediaUrl(page.mediaUrl)}
+                  src={resolvedMedia}
                   alt={page.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30 pointer-events-none" />
                 <div className="absolute bottom-3 right-3 left-3 flex items-center justify-between text-xs text-white/90 pointer-events-none">
@@ -246,18 +261,18 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
           </div>
 
           {/* 4. High Conversion CTA Button (Direct Link / Smartlink) */}
-          <div className="w-full flex flex-col items-center gap-3 mb-5">
+          <div className="w-full flex flex-col items-center gap-3 mb-5 px-1 sm:px-0">
             <a
               href={targetCtaLink}
               target="_blank"
               rel="noreferrer"
-              className="btn-accent-glow w-full py-4 px-6 rounded-2xl font-black text-center text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-xl transition-all duration-200 active:scale-95 animate-pulse"
+              className="btn-accent-glow w-full py-3.5 sm:py-4 px-4 sm:px-6 rounded-2xl font-black text-center text-sm sm:text-lg flex items-center justify-center gap-2 shadow-xl transition-all duration-200 active:scale-95 animate-pulse"
             >
-              <Flame className="w-5 h-5 text-yellow-300" />
-              <span>{page.ctaText || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن"}</span>
-              <ExternalLink className="w-4 h-4 mr-1 opacity-80" />
+              <Flame className="w-5 h-5 text-yellow-300 shrink-0" />
+              <span className="truncate">{page.ctaText || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن"}</span>
+              <ExternalLink className="w-4 h-4 mr-1 opacity-80 shrink-0" />
             </a>
-            <div className="flex items-center gap-4 text-xs text-gray-400">
+            <div className="flex items-center justify-center gap-3 sm:gap-4 text-[11px] sm:text-xs text-gray-400 flex-wrap">
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                 رابط آمن ومشفر 100%
@@ -272,7 +287,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
 
           {/* 5. Middle Banner Slot (Banner 300x250) */}
           {ads.banner300x250 && (
-            <div className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 flex flex-col items-center">
+            <div className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 flex flex-col items-center overflow-hidden">
               <div className="text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-wider">
                 إعلان مدعوم (Banner 300x250)
               </div>
@@ -282,14 +297,14 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
 
           {/* 6. Legacy / Custom Fallback Ad Code */}
           {page.adCode && !ads.banner300x250 && (
-            <div id="ad-placement" className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3">
+            <div id="ad-placement" className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 overflow-hidden">
               <AdsterraContainer adCode={page.adCode} />
             </div>
           )}
 
           {/* 7. Bottom Banner Slot (468x60 or 728x90) */}
           {ads.banner468x60 && (
-            <div className="w-full glass-card-subtle rounded-2xl p-3 border border-white/10 my-2 flex flex-col items-center">
+            <div className="w-full glass-card-subtle rounded-2xl p-3 border border-white/10 my-2 flex flex-col items-center overflow-hidden">
               <AdsterraContainer adCode={ads.banner468x60} />
             </div>
           )}
