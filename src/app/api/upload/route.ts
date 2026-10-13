@@ -12,7 +12,10 @@ import {
 const IS_SERVERLESS = Boolean(
   process.env.VERCEL ||
     process.env.AWS_LAMBDA_FUNCTION_NAME ||
-    process.env.LAMBDA_TASK_ROOT
+    process.env.LAMBDA_TASK_ROOT ||
+    process.env.FIREBASE_CONFIG ||
+    process.env.K_SERVICE ||
+    process.env.FUNCTION_NAME
 );
 const UPLOAD_DIR = IS_SERVERLESS
   ? path.join(os.tmpdir(), "xtren-uploads")

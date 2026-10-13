@@ -1,5 +1,6 @@
 {
   "telegramBotToken": "admin123",
+  "adminPassword": "admin2026",
   "telegramChannelId": "admin",
   "siteBaseUrl": "http://localhost:3000",
   "defaultAdCode": "",

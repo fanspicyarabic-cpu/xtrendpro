@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { LandingPageData, AdminSettings, MediaType, XAuthUser, AdsterraConfig, isAdActive } from "@/lib/types";
-import { resolveMediaUrl, detectMediaType, resolveMediaInfo } from "@/lib/mediaResolver";
+import { resolveMediaUrl, detectMediaType, resolveMediaInfo, cleanMediaInputUrl } from "@/lib/mediaResolver";
 import SmartMediaPlayer from "@/components/SmartMediaPlayer";
 import {
   Send,
@@ -17,6 +18,7 @@ import {
   Radio,
   RefreshCw,
   Eye,
+  EyeOff,
   Sliders,
   Sparkles,
   CheckCircle2,
@@ -35,7 +37,10 @@ import {
   ToggleRight,
   Info,
   CheckCircle,
-  X
+  X,
+  Lock,
+  Key,
+  LogOut
 } from "lucide-react";
 
 interface UploadedFile {
@@ -246,10 +251,119 @@ export default function AdminDashboardArabic() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState<string | null>(null);
 
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+
+  // Password change state in settings
+  const [currentPassInput, setCurrentPassInput] = useState("");
+  const [newPassInput, setNewPassInput] = useState("");
+  const [confirmPassInput, setConfirmPassInput] = useState("");
+  const [passChangeLoading, setPassChangeLoading] = useState(false);
+  const [passChangeMsg, setPassChangeMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   useEffect(() => {
-    loadAllData();
-    checkTwitterOAuth();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch("/api/auth");
+      const data = await res.json();
+      if (data.authenticated) {
+        setIsAuthenticated(true);
+        loadAllData();
+        checkTwitterOAuth();
+      } else {
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
+    } catch {
+      setIsAuthenticated(false);
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", password: authPassword }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsAuthenticated(true);
+        setAuthPassword("");
+        loadAllData();
+        checkTwitterOAuth();
+        showNotification("success", "تم تسجيل الدخول بنجاح! أهلاً بك في لوحة الإدارة");
+      } else {
+        setAuthError(data.error || "كلمة المرور غير صحيحة، يرجى المحاولة مجدداً.");
+      }
+    } catch {
+      setAuthError("فشل الاتصال بالخادم، يرجى المحاولة لاحقاً.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch {}
+    setIsAuthenticated(false);
+    showNotification("info", "تم تسجيل الخروج وقفل لوحة التحكم بنجاح.");
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassInput || newPassInput.length < 4) {
+      setPassChangeMsg({ type: "error", text: "كلمة المرور الجديدة يجب أن تكون 4 أحرف أو أرقام على الأقل" });
+      return;
+    }
+    if (newPassInput !== confirmPassInput) {
+      setPassChangeMsg({ type: "error", text: "تأكيد كلمة المرور غير متطابق" });
+      return;
+    }
+    setPassChangeLoading(true);
+    setPassChangeMsg(null);
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "change_password",
+          oldPassword: currentPassInput,
+          newPassword: newPassInput,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPassChangeMsg({ type: "success", text: "تم تحديث كلمة المرور بنجاح!" });
+        setCurrentPassInput("");
+        setNewPassInput("");
+        setConfirmPassInput("");
+        showNotification("success", "تم تحديث كلمة مرور لوحة التحكم بنجاح");
+      } else {
+        setPassChangeMsg({ type: "error", text: data.error || "فشل تحديث كلمة المرور" });
+      }
+    } catch {
+      setPassChangeMsg({ type: "error", text: "حدث خطأ في الاتصال بالخادم" });
+    } finally {
+      setPassChangeLoading(false);
+    }
+  };
 
   const showNotification = (type: "success" | "error" | "info", text: string) => {
     setStatusMsg({ type, text });
@@ -318,24 +432,43 @@ export default function AdminDashboardArabic() {
     }
   };
 
-  // Real-time intelligent media link handler
+  // Real-time intelligent media link handler with ImgBB auto-conversion
   const handleMediaUrlInput = (rawUrl: string) => {
-    const url = rawUrl.trim();
-    if (!url) {
+    const cleaned = cleanMediaInputUrl(rawUrl);
+    if (!cleaned) {
       setDetectedMediaPlatform(null);
       setFormData((prev) => ({ ...prev, mediaUrl: "" }));
       return;
     }
 
-    const detected = detectMediaType(url);
-    const info = resolveMediaInfo(url);
+    const detected = detectMediaType(cleaned);
+    const info = resolveMediaInfo(cleaned);
     setDetectedMediaPlatform(info.platform);
 
     setFormData((prev) => ({
       ...prev,
-      mediaUrl: url,
+      mediaUrl: cleaned,
       mediaType: detected,
     }));
+
+    // If it's an ImgBB viewer link (ibb.co/...) convert immediately to direct CDN URL
+    if (cleaned.includes("ibb.co/") && !cleaned.includes("i.ibb.co/")) {
+      setDetectedMediaPlatform("جاري فك رابط ImgBB...");
+      fetch(`/api/resolve-media?url=${encodeURIComponent(cleaned)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.resolvedUrl) {
+            setFormData((prev) => ({
+              ...prev,
+              mediaUrl: data.resolvedUrl,
+              mediaType: "image",
+            }));
+            setDetectedMediaPlatform("ImgBB (صورة مباشرة)");
+            showNotification("success", "تم التعرف على رابط ImgBB وتحويله إلى رابط مباشر بنجاح!");
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   // Auto slug generator from title
@@ -793,6 +926,129 @@ export default function AdminDashboardArabic() {
     ).length
     : 0;
 
+  // If verifying authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-[#070b13] flex flex-col items-center justify-center text-white" dir="rtl">
+        <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-brand-600 via-sky-500 to-accent-500 flex items-center justify-center font-black text-2xl shadow-xl shadow-brand-500/30 animate-pulse mb-4">
+          X
+        </div>
+        <p className="text-sm font-bold text-gray-300 animate-pulse">جاري التحقق من أمان وصلاحية لوحة التحكم...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated, show Separate Luxury Admin Login Portal
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#070b13] text-white flex flex-col justify-between relative overflow-hidden" dir="rtl">
+        {/* Glowing ambiences */}
+        <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] bg-brand-500/15 blur-[160px] pointer-events-none rounded-full" />
+        <div className="absolute bottom-1/4 left-1/4 w-[400px] h-[400px] bg-accent-500/10 blur-[150px] pointer-events-none rounded-full" />
+
+        {/* Top Minimal Header */}
+        <header className="w-full border-b border-white/10 bg-slate-950/70 backdrop-blur-xl px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-brand-600 via-sky-500 to-accent-500 flex items-center justify-center font-black text-xl shadow-lg shadow-sky-500/25">
+              X
+            </div>
+            <span className="font-black text-base bg-gradient-to-l from-brand-400 via-white to-accent-500 bg-clip-text text-transparent">
+              منصة XTREN الحصرية
+            </span>
+          </div>
+          <Link
+            href="/"
+            className="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 flex items-center gap-1.5"
+          >
+            <span>الموقع الرئيسي</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
+        </header>
+
+        {/* Center Login Box */}
+        <main className="flex-1 flex items-center justify-center px-4 py-12 z-10">
+          <div className="max-w-md w-full glass-panel-luxury p-8 sm:p-10 rounded-3xl border border-white/15 shadow-2xl relative space-y-6">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl bg-brand-500/20 border border-brand-500/30 text-brand-400 flex items-center justify-center mx-auto shadow-lg shadow-brand-500/20">
+                <Lock className="w-8 h-8 text-sky-400" />
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-sky-300">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>منطقة إدارة محمية ومشفرة</span>
+              </div>
+              <h1 className="text-2xl font-black text-white">لوحة تحكم منصة XTREN</h1>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                يرجى إدخال كلمة المرور لتسجيل الدخول والوصول إلى لوحة إدارة الصفحات والإعلانات
+              </p>
+            </div>
+
+            {authError && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-2">كلمة المرور للدخول</label>
+                <div className="relative">
+                  <input
+                    type={showAuthPassword ? "text" : "password"}
+                    required
+                    autoFocus
+                    placeholder="أدخل كلمة المرور..."
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full glass-input-ar px-4 py-3 rounded-2xl text-sm text-left pr-10 pl-10"
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthPassword(!showAuthPassword)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    {showAuthPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <Lock className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="btn-cyan-glow w-full py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-brand-500/30 transition-all disabled:opacity-50"
+              >
+                {authLoading ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                ) : (
+                  <>
+                    <Key className="w-4 h-4" />
+                    <span>تسجيل الدخول إلى اللوحة</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="pt-2 text-center border-t border-white/5 space-y-1.5">
+              <p className="text-[11px] text-gray-400">
+                كلمة المرور الافتراضية: <code className="text-brand-300 font-mono font-bold bg-white/5 px-2 py-0.5 rounded">admin2026</code>
+              </p>
+              <p className="text-[10px] text-gray-500">
+                (يمكنك تعديل كلمة المرور في أي وقت بعد الدخول من قسم الإعدادات)
+              </p>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="w-full border-t border-white/10 py-4 text-center text-xs text-gray-500 bg-slate-950/70">
+          <p>© {new Date().getFullYear()} منصة XTREN · بوابة الإدارة الآمنة</p>
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#070b13] text-white flex flex-col selection:bg-brand-500 selection:text-white" dir="rtl">
 
@@ -817,7 +1073,7 @@ export default function AdminDashboardArabic() {
           </div>
         </div>
 
-        {/* Quick Top Actions & Twitter Auth Status */}
+        {/* Quick Top Actions & Twitter Auth Status & Logout */}
         <div className="flex items-center gap-3">
           {xUser ? (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
@@ -842,6 +1098,15 @@ export default function AdminDashboardArabic() {
             <span>الموقع الرئيسي</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 text-xs text-rose-300 hover:text-white px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 transition-all border border-rose-500/30 font-bold"
+            title="قفل لوحة التحكم والخروج"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>تسجيل الخروج</span>
+          </button>
         </div>
       </header>
 
@@ -1755,7 +2020,7 @@ export default function AdminDashboardArabic() {
                     </label>
                     <input
                       type="text"
-                      placeholder="https://your-domain.vercel.app"
+                      placeholder="https://xtren-hub-2026.web.app"
                       className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
                       dir="ltr"
                       value={settings.siteBaseUrl || ""}
@@ -1773,6 +2038,100 @@ export default function AdminDashboardArabic() {
                   حفظ جميع الإعدادات
                 </button>
               </div>
+            </div>
+
+            {/* Admin Security & Password Change Section */}
+            <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
+              <div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-rose-400" />
+                  أمان لوحة التحكم وكلمة المرور
+                </h2>
+                <p className="text-xs text-gray-400 mt-1">
+                  يمكنك تغيير كلمة المرور المخصصة للدخول إلى لوحة التحكم لحماية حسابك وحملاتك وصفحاتك
+                </p>
+              </div>
+
+              {passChangeMsg && (
+                <div
+                  className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+                    passChangeMsg.type === "success"
+                      ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
+                      : "bg-rose-950/80 border-rose-500/40 text-rose-300"
+                  }`}
+                >
+                  {passChangeMsg.type === "success" ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  )}
+                  <span>{passChangeMsg.text}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    كلمة المرور الحالية
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="أدخل كلمة المرور الحالية..."
+                    value={currentPassInput}
+                    onChange={(e) => setCurrentPassInput(e.target.value)}
+                    className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    كلمة المرور الجديدة
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="كلمة مرور جديدة (4 خانات+)..."
+                    value={newPassInput}
+                    onChange={(e) => setNewPassInput(e.target.value)}
+                    className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    تأكيد كلمة المرور الجديدة
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="أعد كتابة كلمة المرور..."
+                    value={confirmPassInput}
+                    onChange={(e) => setConfirmPassInput(e.target.value)}
+                    className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="md:col-span-3 flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    disabled={passChangeLoading}
+                    className="btn-accent-glow px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
+                  >
+                    {passChangeLoading ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    ) : (
+                      <>
+                        <Key className="w-4 h-4" />
+                        <span>تحديث كلمة المرور الآن</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
 
           </div>

@@ -131,9 +131,10 @@ export function getLocalFallbackPages(): LandingPageData[] {
 export function readLocalSettings(): AdminSettings {
   ensureDirs();
   const fallbackSettings: AdminSettings = {
+    adminPassword: process.env.ADMIN_PASSWORD || "admin2026",
     telegramBotToken: "",
     telegramChannelId: "",
-    siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app",
+    siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://xtren-hub-2026.web.app",
     defaultAdCode: "",
     defaultAds: {
       allAdsEnabled: true,
@@ -600,6 +601,13 @@ export async function getPageForServer(
       return null;
     }
 
+    // Auto-resolve any ImgBB viewer link or embed snippet dynamically
+    let resolvedMediaUrl = page.mediaUrl || "";
+    try {
+      const { resolveIbbUrl, cleanMediaInputUrl } = await import("./mediaResolver");
+      resolvedMediaUrl = await resolveIbbUrl(cleanMediaInputUrl(resolvedMediaUrl));
+    } catch { }
+
     const defaultAds: AdsterraConfig = settings.defaultAds || {};
 
     const mergedAds: AdsterraConfig = {
@@ -635,6 +643,7 @@ export async function getPageForServer(
 
     return {
       ...page,
+      mediaUrl: resolvedMediaUrl,
       adCode: fallbackAdCode,
       ads: mergedAds,
       ctaLink: effectiveCtaLink,

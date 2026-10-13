@@ -74,6 +74,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Clean potential pasted embeds & resolve ImgBB viewer links to direct CDN image URLs
+    const { cleanMediaInputUrl, resolveIbbUrl } = await import("@/lib/mediaResolver");
+    const cleanedMediaUrl = cleanMediaInputUrl(page.mediaUrl);
+    const resolvedMediaUrl = await resolveIbbUrl(cleanedMediaUrl);
+    page.mediaUrl = resolvedMediaUrl;
+
     const saved = await savePageToFirebase(page);
     return NextResponse.json(
       {

@@ -59,6 +59,7 @@ export interface AdminSettings {
   twitterApiKeySecret?: string;
   twitterAccessToken?: string;
   twitterAccessTokenSecret?: string;
+  adminPassword?: string;
   siteBaseUrl?: string;
   defaultAdCode?: string;
   defaultAds?: AdsterraConfig; // Structured Default Adsterra Units for all pages

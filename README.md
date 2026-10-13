@@ -67,22 +67,28 @@ Open [http://localhost:3000](http://localhost:3000) for the homepage, or [http:/
 ---
 
 ## 🐦 Twitter / X Integration Setup
-1. Go to the [Twitter Developer Portal](https://developer.twitter.com/en/portal/dashboard).
-2. Create a project and an App.
-3. In **User authentication settings**, enable **OAuth 2.0**:
-   - Type of App: **Web App**
-   - Callback URL: `https://your-domain.vercel.app/api/x/callback` (or `http://localhost:3000/api/x/callback` for localhost)
-   - Permissions: `tweet.read`, `tweet.write`, `users.read`, `offline.access`
-4. Copy the **Client ID** and **Client Secret** into your `.env.local` or enter your API keys directly in the Admin Dashboard Settings.
-
----
-
-## ☁️ Deployment to Vercel
-1. Push this repository to GitHub.
-2. Import the project into [Vercel](https://vercel.com).
-3. In **Settings > Environment Variables**, add:
-   - `NEXT_PUBLIC_SITE_URL` (e.g., `https://your-project.vercel.app`)
-   - Firebase config keys (`NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.)
-   - `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHANNEL_ID`
-   - `TWITTER_CLIENT_ID` & `TWITTER_CLIENT_SECRET`
-4. Click **Deploy**!
+70: 1. Go to the [Twitter Developer Portal](https://developer.twitter.com/en/portal/dashboard).
+71: 2. Create a project and an App.
+72: 3. In **User authentication settings**, enable **OAuth 2.0**:
+73:    - Type of App: **Web App**
+74:    - Callback URL: `https://xtren-hub-2026.web.app/api/x/callback` (or `http://localhost:3000/api/x/callback` for localhost)
+75:    - Permissions: `tweet.read`, `tweet.write`, `users.read`, `offline.access`
+76: 4. Copy the **Client ID** and **Client Secret** into your `.env.local` or enter your API keys directly in the Admin Dashboard Settings.
+77: 
+78: ---
+79: 
+80: ## ☁️ Deployment to Firebase
+81: 1. Make sure Firebase CLI is logged in:
+82:    ```bash
+83:    firebase login
+84:    ```
+85: 2. Enable webframeworks experiment:
+86:    ```bash
+87:    firebase experiments:enable webframeworks
+88:    ```
+89: 3. Deploy to Firebase:
+90:    ```bash
+91:    firebase deploy --only hosting,firestore
+92:    ```
+93: 4. Your site will be live at:
+94:    `https://xtren-hub-2026.web.app`

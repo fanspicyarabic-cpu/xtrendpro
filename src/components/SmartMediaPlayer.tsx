@@ -54,6 +54,7 @@ export default function SmartMediaPlayer({
 
   // Update resolved info whenever mediaUrl changes
   useEffect(() => {
+    let active = true;
     const resolved = resolveMediaInfo(mediaUrl);
     // If mediaType was explicitly passed as video and resolved kind was image (or vice versa), respect explicit video
     if (mediaType === "video" && resolved.kind === "image") {
@@ -64,6 +65,28 @@ export default function SmartMediaPlayer({
     setInfo(resolved);
     setHasError(false);
     setIsLoading(true);
+
+    // If it's an ImgBB viewer link (ibb.co/...), fetch the direct CDN URL from API
+    if (mediaUrl && mediaUrl.includes("ibb.co/") && !mediaUrl.includes("i.ibb.co/")) {
+      fetch(`/api/resolve-media?url=${encodeURIComponent(mediaUrl)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (active && data.success && data.resolvedUrl) {
+            setInfo((prev) => ({
+              ...prev,
+              url: data.resolvedUrl,
+              platform: "ImgBB",
+              kind: "image",
+            }));
+            setIsLoading(false);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      active = false;
+    };
   }, [mediaUrl, mediaType]);
 
   // Autoplay attempt on mount & user interaction
@@ -200,6 +223,18 @@ export default function SmartMediaPlayer({
           src={info.url}
           alt={title}
           referrerPolicy="no-referrer"
+          onError={() => {
+            if (info.url && (info.url.includes("ibb.co") || !info.url.includes("i.ibb.co"))) {
+              fetch(`/api/resolve-media?url=${encodeURIComponent(info.url)}`)
+                .then((res) => res.json())
+                .then((data) => {
+                  if (data.success && data.resolvedUrl && data.resolvedUrl !== info.url) {
+                    setInfo((prev) => ({ ...prev, url: data.resolvedUrl }));
+                  }
+                })
+                .catch(() => {});
+            }
+          }}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 rounded-2xl"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30 pointer-events-none" />

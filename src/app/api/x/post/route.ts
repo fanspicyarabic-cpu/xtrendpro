@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const origin = customSiteUrl || req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://xtren.vercel.app";
+    const origin = customSiteUrl || req.headers.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://xtren-hub-2026.web.app";
     const pageUrl = `${origin}/p/${page.slug}`;
 
     const defaultText = `${page.title}\n\n🔞 Watch full exclusive 4K cut here:\n${pageUrl}\n\n#viral #exclusive #trend`;

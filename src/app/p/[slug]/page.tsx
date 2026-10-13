@@ -41,15 +41,28 @@ export async function generateMetadata(
 
   const title = page.title || "عرض حصري بجودة فائقة 4K";
   const description = page.description || "شاهد البث الكامل الحصري بجودة فائقة الوضوح. متاح لفترة محدودة الآن.";
-  const rawMediaUrl = page.mediaUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200";
+
+  // Clean & resolve real media URL (convert ImgBB viewer links to direct raw image)
+  let rawMediaUrl = page.mediaUrl || "";
+  try {
+    const { resolveIbbUrl, cleanMediaInputUrl } = await import("@/lib/mediaResolver");
+    rawMediaUrl = await resolveIbbUrl(cleanMediaInputUrl(rawMediaUrl));
+  } catch {}
+
   const mediaInfo = resolveMediaInfo(rawMediaUrl);
-  const isVideo = page.mediaType === "video" || mediaInfo.kind === "video" || mediaInfo.kind === "embed";
+  const isVideo = page.mediaType === "video" && (mediaInfo.kind === "video" || mediaInfo.kind === "embed");
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://xtrendpro1.vercel.app");
 
-  const previewThumbnail = isVideo
-    ? mediaInfo.posterUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200"
-    : mediaInfo.url;
+  // Determine preview thumbnail: ALWAYS prioritize user's actual image or video poster
+  let previewThumbnail = rawMediaUrl;
+  if (isVideo) {
+    previewThumbnail = mediaInfo.posterUrl || rawMediaUrl;
+  } else if (mediaInfo.url) {
+    previewThumbnail = mediaInfo.url;
+  }
 
   return {
     title: `${title} | منصة XTREN`,
@@ -242,10 +255,6 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
                 <Flame className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
                 بث حصري 4K فائق الدقة
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                محتوى مؤكد وجاهز للتشغيل
               </span>
             </div>
 

@@ -12,7 +12,8 @@ import {
   Eye,
   Sliders,
   FolderOpen,
-  CheckCircle2
+  CheckCircle2,
+  Lock
 } from "lucide-react";
 
 export default function HomePageArabic() {
@@ -37,10 +38,10 @@ export default function HomePageArabic() {
           <div className="flex items-center gap-3">
             <Link
               href="/admin"
-              className="btn-cyan-glow px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-brand-500/20"
+              className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border border-white/10 bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white transition-all shadow-md"
             >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>لوحة التحكم المركزية</span>
+              <Lock className="w-3.5 h-3.5 text-sky-400" />
+              <span>لوحة الإدارة (محمية)</span>
               <ArrowLeft className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -65,20 +66,20 @@ export default function HomePageArabic() {
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
           <Link
-            href="/admin"
-            className="btn-cyan-glow px-8 py-3.5 rounded-2xl font-black text-sm sm:text-base flex items-center gap-2.5 shadow-xl shadow-brand-500/30"
+            href="/p/test-model-premiere-4k"
+            className="btn-accent-glow px-8 py-3.5 rounded-2xl font-black text-sm sm:text-base flex items-center gap-2.5 shadow-xl transition-all"
           >
-            <Sliders className="w-4 h-4" />
-            <span>الدخول إلى لوحة الإدارة والتحكم</span>
+            <Eye className="w-4 h-4 text-yellow-300" />
+            <span>معاينة صفحة نموذجية 4K</span>
+            <ExternalLink className="w-4 h-4 mr-1 opacity-80" />
           </Link>
 
           <Link
-            href="/p/test-model-premiere-4k"
+            href="/admin"
             className="glass-card-subtle px-6 py-3.5 rounded-2xl font-bold text-sm sm:text-base text-gray-200 hover:text-white hover:border-white/20 transition-all flex items-center gap-2"
           >
-            <Eye className="w-4 h-4 text-rose-400" />
-            <span>معاينة صفحة هبوط نموذجية</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+            <Lock className="w-4 h-4 text-sky-400" />
+            <span>بوابة لوحة الإدارة (بكلمة سر)</span>
           </Link>
         </div>
 
