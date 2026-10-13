@@ -13,13 +13,10 @@ const FIREBASE_API_KEY =
   process.env.FIREBASE_API_KEY ||
   "AIzaSyDAHFw2pKa9vrz3wuwdw7JiYFq92592uqM";
 
-const rawDbId =
+const FIRESTORE_DB_ID =
   process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID ||
   process.env.FIRESTORE_DATABASE_ID ||
   "default";
-
-// In Cloud Firestore REST API, the default database is addressed as "(default)"
-const FIRESTORE_DB_ID = rawDbId === "default" ? "(default)" : rawDbId;
 
 export const BASE_FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/${FIRESTORE_DB_ID}/documents`;
 export { FIREBASE_API_KEY, FIREBASE_PROJECT_ID, FIRESTORE_DB_ID };
