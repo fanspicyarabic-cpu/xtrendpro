@@ -1,33 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStoredSettings, saveStoredSettings } from "@/lib/serverDb";
+import { getFirebaseSettings, saveFirebaseSettings } from "@/lib/firebaseAdmin";
 import { AdminSettings } from "@/lib/types";
 
-// GET: Retrieve Admin Settings
+// Force dynamic execution for API routes
+export const dynamic = "force-dynamic";
+
+// GET: Retrieve Admin Settings directly from Firebase Firestore (settings/general)
 export async function GET() {
   try {
-    const settings = getStoredSettings();
+    const settings = await getFirebaseSettings();
     return NextResponse.json({ success: true, settings });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error("GET /api/settings error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "فشل جلب الإعدادات من Firebase" },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Save or Update Admin Settings (including multi-format Adsterra default ads)
+// POST: Save or Update Admin Settings directly in Firebase Firestore (settings/general)
 export async function POST(req: NextRequest) {
   try {
     const newSettings = (await req.json()) as AdminSettings;
-    const current = getStoredSettings();
-    const updated = saveStoredSettings({
-      ...current,
-      ...newSettings,
-    });
+    const updated = await saveFirebaseSettings(newSettings);
 
     return NextResponse.json({
       success: true,
-      message: "تم حفظ إعدادات وأكواد إعلانات Adsterra بنجاح!",
+      message: "تم حفظ وتحديث الإعدادات بنجاح في قاعدة بيانات Firebase!",
       settings: updated,
     });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error("POST /api/settings error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "فشل حفظ الإعدادات في Firebase" },
+      { status: 500 }
+    );
   }
 }

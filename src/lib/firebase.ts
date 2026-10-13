@@ -7,7 +7,6 @@ import {
   getDoc, 
   getDocs, 
   deleteDoc, 
-  updateDoc,
   query, 
   orderBy, 
   serverTimestamp,
@@ -16,12 +15,12 @@ import {
 import { LandingPageData, AdminSettings } from "./types";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAz1AHssprR5V0fKJEnhew0riAqGMAf0WU",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "fanspicyrabic.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "fanspicyrabic",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "fanspicyrabic.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "200641266506",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:200641266506:web:808950902686dee4b737b3",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDAHFw2pKa9vrz3wuwdw7JiYFq92592uqM",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "xtren-hub-2026.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "xtren-hub-2026",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "xtren-hub-2026.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "484480782636",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:484480782636:web:15e117b334a79469e2dc89",
 };
 
 let app: any = null;
@@ -29,27 +28,17 @@ let db: Firestore | null = null;
 let isFirebaseConfigured = false;
 
 try {
-  if (
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== "AIzaSyDummyKeyForDevelopmentModeXTREN999"
-  ) {
-    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    isFirebaseConfigured = true;
-  } else {
-    // Initialize dummy app for safety
-    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    isFirebaseConfigured = false;
-  }
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  const dbId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID || "default";
+  db = getFirestore(app, dbId);
+  isFirebaseConfigured = true;
 } catch (e) {
-  console.warn("Firebase initialization warning (using local fallback if needed):", e);
+  console.warn("Firebase initialization warning:", e);
 }
 
 export { app, db, isFirebaseConfigured };
 
-// Fallback localStorage cache for offline/initial setup convenience
+// Fallback localStorage cache for offline assistance only
 const LOCAL_STORAGE_KEY_PAGES = "xtren_cms_pages_local";
 const LOCAL_STORAGE_KEY_SETTINGS = "xtren_cms_settings_local";
 
@@ -85,28 +74,18 @@ export const saveLocalSettings = (settings: AdminSettings) => {
   localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(settings));
 };
 
-// Unified Landing Page Services
+// Unified Landing Page Services (Client SDK)
 export async function saveLandingPage(page: LandingPageData): Promise<LandingPageData> {
   const timestamp = new Date().toISOString();
   const pageWithTime: LandingPageData = {
     ...page,
     updatedAt: timestamp,
     createdAt: page.createdAt || timestamp,
-    views: page.views || 0,
-    clicks: page.clicks || 0,
+    views: typeof page.views === "number" ? page.views : 0,
+    clicks: typeof page.clicks === "number" ? page.clicks : 0,
   };
 
-  // 1. Always update local storage for instant sync & UI responsiveness
-  const localList = getLocalPages();
-  const existingIdx = localList.findIndex((p) => p.slug === page.slug);
-  if (existingIdx >= 0) {
-    localList[existingIdx] = pageWithTime;
-  } else {
-    localList.unshift(pageWithTime);
-  }
-  saveLocalPages(localList);
-
-  // 2. Try Firestore if configured
+  // 1. Direct Firestore write
   if (db && isFirebaseConfigured) {
     try {
       const docRef = doc(db, "pages", page.slug);
@@ -118,6 +97,16 @@ export async function saveLandingPage(page: LandingPageData): Promise<LandingPag
       console.error("Firestore save error:", err);
     }
   }
+
+  // 2. Cache in localStorage
+  const localList = getLocalPages();
+  const existingIdx = localList.findIndex((p) => p.slug === page.slug);
+  if (existingIdx >= 0) {
+    localList[existingIdx] = pageWithTime;
+  } else {
+    localList.unshift(pageWithTime);
+  }
+  saveLocalPages(localList);
 
   return pageWithTime;
 }
@@ -137,7 +126,7 @@ export async function fetchAllLandingPages(): Promise<LandingPageData[]> {
         return list;
       }
     } catch (err) {
-      console.warn("Firestore fetch error, falling back to local storage:", err);
+      console.warn("Firestore fetch error, falling back to local cache:", err);
     }
   }
   return getLocalPages();
@@ -162,9 +151,6 @@ export async function fetchLandingPageBySlug(slug: string): Promise<LandingPageD
 }
 
 export async function deleteLandingPage(slug: string): Promise<boolean> {
-  const localList = getLocalPages().filter((p) => p.slug !== slug);
-  saveLocalPages(localList);
-
   if (db && isFirebaseConfigured) {
     try {
       const docRef = doc(db, "pages", slug);
@@ -173,5 +159,42 @@ export async function deleteLandingPage(slug: string): Promise<boolean> {
       console.error("Firestore delete error:", err);
     }
   }
+
+  const localList = getLocalPages().filter((p) => p.slug !== slug);
+  saveLocalPages(localList);
+
   return true;
+}
+
+export async function fetchAdminSettings(): Promise<AdminSettings> {
+  if (db && isFirebaseConfigured) {
+    try {
+      const docRef = doc(db, "settings", "general");
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        const data = snapshot.data() as AdminSettings;
+        saveLocalSettings(data);
+        return data;
+      }
+    } catch (err) {
+      console.warn("Firestore settings fetch error:", err);
+    }
+  }
+  return getLocalSettings();
+}
+
+export async function saveAdminSettings(settings: AdminSettings): Promise<AdminSettings> {
+  if (db && isFirebaseConfigured) {
+    try {
+      const docRef = doc(db, "settings", "general");
+      await setDoc(docRef, {
+        ...settings,
+        serverTimestamp: serverTimestamp(),
+      }, { merge: true });
+    } catch (err) {
+      console.error("Firestore settings save error:", err);
+    }
+  }
+  saveLocalSettings(settings);
+  return settings;
 }

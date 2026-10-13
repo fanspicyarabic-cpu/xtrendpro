@@ -56,106 +56,106 @@ const ADSTERRA_SLOTS: Array<{
   type: "banner" | "direct" | "floating" | "custom";
   device: "all" | "mobile" | "desktop";
 }> = [
-  {
-    key: "socialBar",
-    id: "30673789",
-    name: "Social Bar (SocialBar_1)",
-    placement: "شريط إشعارات تفاعلي عائم",
-    desc: "يظهر كإشعار تفاعلي أو أيقونة دردشة ذكية عائمة على الهاتف والكمبيوتر لجلب أعلى CTR دون حجب المحتوى.",
-    type: "floating",
-    device: "all",
-  },
-  {
-    key: "popunder",
-    id: "30673794",
-    name: "Popunder (Popunder_1)",
-    placement: "نافذة منبثقة خلفية عالية الـ CPM",
-    desc: "يفتح نافذة إعلانية منبثقة تلقائياً عند أول نقرة أو لمسة للزائر على المشغل لأقصى عائد ربحي ممكن.",
-    type: "floating",
-    device: "all",
-  },
-  {
-    key: "smartlink",
-    id: "30673795",
-    name: "Smartlink (Smartlink_1)",
-    placement: "الرابط المباشر للربح (مرتبط بزر المشاهدة)",
-    desc: "يتم ربطه فورياً بزر التحويل والمشاهدة الرئيسي في كل الصفحات لتحويل الزوار إلى أفضل العروض الربحية.",
-    type: "direct",
-    device: "all",
-  },
-  {
-    key: "banner300x250",
-    id: "30673796",
-    name: "Banner 300x250 (300x250_1)",
-    placement: "أسفل مشغل الفيديو مباشرة (أعلى نقرات)",
-    desc: "المكان الذهبي للإعلانات! يظهر تحت المشغل وزر المشاهدة مباشرة، المكان الأكثر جذباً لانتباه المشاهد.",
-    type: "banner",
-    device: "all",
-  },
-  {
-    key: "banner728x90",
-    id: "30673801",
-    name: "Leaderboard Banner 728x90 (728x90_1)",
-    placement: "أعلى الصفحة لشاشات الكمبيوتر واللابتوب",
-    desc: "بانر عريض يظهر في رأس الصفحة للزوار المتصفحين من الكمبيوتر وشاشات العرض الكبيرة.",
-    type: "banner",
-    device: "desktop",
-  },
-  {
-    key: "banner320x50",
-    id: "30673800",
-    name: "Mobile Banner 320x50 (320x50_1)",
-    placement: "أعلى الصفحة مخصص للهواتف الذكية",
-    desc: "بانر متجاوب ومخصص بالكامل لشاشات الموبايل يظهر أعلى المحتوى لضمان ظهور الإعلان بدون أي تشويه.",
-    type: "banner",
-    device: "mobile",
-  },
-  {
-    key: "banner468x60",
-    id: "30673797",
-    name: "Banner 468x60 (468x60_1)",
-    placement: "أسفل الصفحة للأجهزة اللوحية والموبايل",
-    desc: "بانر متوسط متجاوب يوضع في الجزء السفلي قبل التذييل لتحقيق أرباح إضافية عند التمرير.",
-    type: "banner",
-    device: "all",
-  },
-  {
-    key: "banner160x600",
-    id: "30673799",
-    name: "Skyscraper Banner 160x600 (160x600_1)",
-    placement: "بانر جانبي طولي ثابت (يمين أو يسار)",
-    desc: "بانر عمودي ثابت في السايدبار لشاشات الكمبيوتر، يظل ظاهراً طوال فترة بقاء المشاهد في الصفحة.",
-    type: "banner",
-    device: "desktop",
-  },
-  {
-    key: "banner160x300",
-    id: "30673798",
-    name: "Banner 160x300 (160x300_1)",
-    placement: "بانر جانبي بديل متوسط",
-    desc: "بانر سايدبار متوسط الحجم للأجهزة ذات الدقة المتوسطة.",
-    type: "banner",
-    device: "desktop",
-  },
-  {
-    key: "nativeBanner",
-    id: "Native_1",
-    name: "Native Banner (إعلانات المحتوى الموصى به)",
-    placement: "بين المحتوى وزر الإجراء",
-    desc: "إعلانات أصلية مدمجة تحاكي مقاطع الفيديو المقترحة للحصول على نقرات حقيقية عالية جداً.",
-    type: "banner",
-    device: "all",
-  },
-  {
-    key: "customAd",
-    id: "Custom_1",
-    name: "كود إعلاني مخصص إضافي",
-    placement: "منطقة مخصصة حرة",
-    desc: "يمكنك وضع أي كود إعلاني إضافي من Adsterra أو أي شبكة إعلانية أخرى ترغب بها.",
-    type: "custom",
-    device: "all",
-  },
-];
+    {
+      key: "socialBar",
+      id: "30673789",
+      name: "Social Bar (SocialBar_1)",
+      placement: "شريط إشعارات تفاعلي عائم",
+      desc: "يظهر كإشعار تفاعلي أو أيقونة دردشة ذكية عائمة على الهاتف والكمبيوتر لجلب أعلى CTR دون حجب المحتوى.",
+      type: "floating",
+      device: "all",
+    },
+    {
+      key: "popunder",
+      id: "30673794",
+      name: "Popunder (Popunder_1)",
+      placement: "نافذة منبثقة خلفية عالية الـ CPM",
+      desc: "يفتح نافذة إعلانية منبثقة تلقائياً عند أول نقرة أو لمسة للزائر على المشغل لأقصى عائد ربحي ممكن.",
+      type: "floating",
+      device: "all",
+    },
+    {
+      key: "smartlink",
+      id: "30673795",
+      name: "Smartlink (Smartlink_1)",
+      placement: "الرابط المباشر للربح (مرتبط بزر المشاهدة)",
+      desc: "يتم ربطه فورياً بزر التحويل والمشاهدة الرئيسي في كل الصفحات لتحويل الزوار إلى أفضل العروض الربحية.",
+      type: "direct",
+      device: "all",
+    },
+    {
+      key: "banner300x250",
+      id: "30673796",
+      name: "Banner 300x250 (300x250_1)",
+      placement: "أسفل مشغل الفيديو مباشرة (أعلى نقرات)",
+      desc: "المكان الذهبي للإعلانات! يظهر تحت المشغل وزر المشاهدة مباشرة، المكان الأكثر جذباً لانتباه المشاهد.",
+      type: "banner",
+      device: "all",
+    },
+    {
+      key: "banner728x90",
+      id: "30673801",
+      name: "Leaderboard Banner 728x90 (728x90_1)",
+      placement: "أعلى الصفحة لشاشات الكمبيوتر واللابتوب",
+      desc: "بانر عريض يظهر في رأس الصفحة للزوار المتصفحين من الكمبيوتر وشاشات العرض الكبيرة.",
+      type: "banner",
+      device: "desktop",
+    },
+    {
+      key: "banner320x50",
+      id: "30673800",
+      name: "Mobile Banner 320x50 (320x50_1)",
+      placement: "أعلى الصفحة مخصص للهواتف الذكية",
+      desc: "بانر متجاوب ومخصص بالكامل لشاشات الموبايل يظهر أعلى المحتوى لضمان ظهور الإعلان بدون أي تشويه.",
+      type: "banner",
+      device: "mobile",
+    },
+    {
+      key: "banner468x60",
+      id: "30673797",
+      name: "Banner 468x60 (468x60_1)",
+      placement: "أسفل الصفحة للأجهزة اللوحية والموبايل",
+      desc: "بانر متوسط متجاوب يوضع في الجزء السفلي قبل التذييل لتحقيق أرباح إضافية عند التمرير.",
+      type: "banner",
+      device: "all",
+    },
+    {
+      key: "banner160x600",
+      id: "30673799",
+      name: "Skyscraper Banner 160x600 (160x600_1)",
+      placement: "بانر جانبي طولي ثابت (يمين أو يسار)",
+      desc: "بانر عمودي ثابت في السايدبار لشاشات الكمبيوتر، يظل ظاهراً طوال فترة بقاء المشاهد في الصفحة.",
+      type: "banner",
+      device: "desktop",
+    },
+    {
+      key: "banner160x300",
+      id: "30673798",
+      name: "Banner 160x300 (160x300_1)",
+      placement: "بانر جانبي بديل متوسط",
+      desc: "بانر سايدبار متوسط الحجم للأجهزة ذات الدقة المتوسطة.",
+      type: "banner",
+      device: "desktop",
+    },
+    {
+      key: "nativeBanner",
+      id: "Native_1",
+      name: "Native Banner (إعلانات المحتوى الموصى به)",
+      placement: "بين المحتوى وزر الإجراء",
+      desc: "إعلانات أصلية مدمجة تحاكي مقاطع الفيديو المقترحة للحصول على نقرات حقيقية عالية جداً.",
+      type: "banner",
+      device: "all",
+    },
+    {
+      key: "customAd",
+      id: "Custom_1",
+      name: "كود إعلاني مخصص إضافي",
+      placement: "منطقة مخصصة حرة",
+      desc: "يمكنك وضع أي كود إعلاني إضافي من Adsterra أو أي شبكة إعلانية أخرى ترغب بها.",
+      type: "custom",
+      device: "all",
+    },
+  ];
 
 export default function AdminDashboardArabic() {
   const [activeTab, setActiveTab] = useState<"create" | "media" | "pages" | "settings">("create");
@@ -313,7 +313,7 @@ export default function AdminDashboardArabic() {
         try {
           const parsed = JSON.parse(decodeURIComponent(match[1]));
           setXUser(parsed);
-        } catch {}
+        } catch { }
       }
     }
   };
@@ -352,35 +352,144 @@ export default function AdminDashboardArabic() {
     }));
   };
 
+  // Helper to upload with XHR and progress tracking
+  const uploadWithXHR = (
+    url: string,
+    formData: FormData,
+    onProgress: (percent: number) => void
+  ): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const percent = Math.round((evt.loaded / evt.total) * 100);
+          onProgress(percent);
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            resolve(xhr.responseText);
+          }
+        } else {
+          reject(new Error(`فشل الرفع (كود ${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("حدث خطأ في الاتصال أثناء الرفع"));
+      xhr.send(formData);
+    });
+  };
+
   // Handle File Upload from computer
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
-    setUploadProgress(`جاري رفع ${file.name}...`);
+    setUploadProgress(`جاري تجهيز ${file.name}...`);
 
     try {
-      const uploadData = new FormData();
-      uploadData.append("file", file);
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      const isVideo = ["mp4", "webm", "mov", "m4v"].includes(ext) || file.type.startsWith("video/");
+      const isImage = ["jpg", "jpeg", "png", "webp", "gif", "svg"].includes(ext) || file.type.startsWith("image/");
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: uploadData,
-      });
+      let uploadedFileRecord: UploadedFile | null = null;
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "فشل في رفع الملف");
+      // Method 1: If it's a video, attempt direct browser upload to Videy CDN (bypasses serverless payload limit, handles large videos)
+      if (isVideo) {
+        try {
+          setUploadProgress("جاري رفع الفيديو إلى خادم البث المباشر (0%)...");
+          const videyFd = new FormData();
+          videyFd.append("file", file);
+          const videyRes = await uploadWithXHR(
+            "https://videy.co/api/upload",
+            videyFd,
+            (pct) => setUploadProgress(`جاري رفع الفيديو... ${pct}%`)
+          );
+
+          if (videyRes && videyRes.id) {
+            const detectedExt = ext === "mov" ? "mov" : "mp4";
+            const streamUrl = `https://cdn.videy.co/${videyRes.id}.${detectedExt}`;
+            uploadedFileRecord = {
+              name: `${Date.now()}_${file.name}`,
+              url: streamUrl,
+              size: file.size,
+              type: "video",
+              createdAt: new Date().toISOString(),
+            };
+
+            // Register in Firestore for gallery persistence
+            fetch("/api/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "register", file: uploadedFileRecord }),
+            }).catch(() => {});
+          }
+        } catch (videyErr) {
+          console.warn("Direct Videy upload failed, falling back to server route:", videyErr);
+        }
+      } else if (isImage) {
+        // Method 2: If it's an image, attempt direct cloud image upload
+        try {
+          setUploadProgress("جاري رفع الصورة (0%)...");
+          const imgFd = new FormData();
+          imgFd.append("reqtype", "fileupload");
+          imgFd.append("time", "72h");
+          imgFd.append("fileToUpload", file);
+          const rawUrl = await uploadWithXHR(
+            "https://litterbox.catbox.moe/resources/internals/api.php",
+            imgFd,
+            (pct) => setUploadProgress(`جاري رفع الصورة... ${pct}%`)
+          );
+          if (typeof rawUrl === "string" && rawUrl.trim().startsWith("http")) {
+            uploadedFileRecord = {
+              name: `${Date.now()}_${file.name}`,
+              url: rawUrl.trim(),
+              size: file.size,
+              type: "image",
+              createdAt: new Date().toISOString(),
+            };
+
+            // Register in Firestore
+            fetch("/api/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "register", file: uploadedFileRecord }),
+            }).catch(() => {});
+          }
+        } catch (imgErr) {
+          console.warn("Direct image upload failed, falling back to server route:", imgErr);
+        }
       }
 
-      showNotification("success", `تم رفع الملف (${data.file.name}) بنجاح وتخزينه!`);
+      // Method 3: Fallback through /api/upload
+      if (!uploadedFileRecord) {
+        setUploadProgress(`جاري رفع ${file.name} عبر السيرفر...`);
+        const uploadData = new FormData();
+        uploadData.append("file", file);
 
-      // Refresh uploads list
-      setUploadedFiles((prev) => [data.file, ...prev]);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadData,
+        });
 
-      // Automatically assign to current form
-      handleMediaUrlInput(data.file.url);
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "فشل في رفع الملف");
+        }
+        uploadedFileRecord = data.file;
+      }
+
+      if (uploadedFileRecord) {
+        showNotification("success", `تم رفع الملف (${file.name}) بنجاح وتجهيزه!`);
+        // Refresh uploads list
+        setUploadedFiles((prev) => [uploadedFileRecord!, ...prev]);
+        // Automatically assign to current form
+        handleMediaUrlInput(uploadedFileRecord.url);
+      }
     } catch (err: any) {
       showNotification("error", err.message || "حدث خطأ أثناء الرفع");
     } finally {
@@ -458,9 +567,9 @@ export default function AdminDashboardArabic() {
     try {
       const finalAds: AdsterraConfig = formData.useDefaultAds
         ? {
-            ...settings.defaultAds,
-            ...(formData.ads || {}),
-          }
+          ...settings.defaultAds,
+          ...(formData.ads || {}),
+        }
         : (formData.ads || {});
 
       const newPage: LandingPageData = {
@@ -670,15 +779,15 @@ export default function AdminDashboardArabic() {
   ).length;
   const activeAdsCount = masterAdsOn
     ? ADSTERRA_SLOTS.filter(
-        (s) =>
-          Boolean((settings.defaultAds as any)?.[s.key]?.trim()) &&
-          settings.defaultAds?.status?.[s.key] !== false
-      ).length
+      (s) =>
+        Boolean((settings.defaultAds as any)?.[s.key]?.trim()) &&
+        settings.defaultAds?.status?.[s.key] !== false
+    ).length
     : 0;
 
   return (
     <div className="min-h-screen bg-[#070b13] text-white flex flex-col selection:bg-brand-500 selection:text-white" dir="rtl">
-      
+
       {/* Top Header */}
       <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -732,13 +841,12 @@ export default function AdminDashboardArabic() {
       {statusMsg && (
         <div className="fixed top-16 left-6 z-50 max-w-md animate-in slide-in-from-top-3">
           <div
-            className={`px-4 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 text-sm font-semibold ${
-              statusMsg.type === "success"
+            className={`px-4 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 text-sm font-semibold ${statusMsg.type === "success"
                 ? "bg-emerald-950/95 text-emerald-200 border-emerald-500/50"
                 : statusMsg.type === "error"
-                ? "bg-rose-950/95 text-rose-200 border-rose-500/50"
-                : "bg-sky-950/95 text-sky-200 border-sky-500/50"
-            }`}
+                  ? "bg-rose-950/95 text-rose-200 border-rose-500/50"
+                  : "bg-sky-950/95 text-sky-200 border-sky-500/50"
+              }`}
           >
             {statusMsg.type === "success" && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
             {statusMsg.type === "error" && <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />}
@@ -750,7 +858,7 @@ export default function AdminDashboardArabic() {
 
       {/* Main Container */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 flex flex-col space-y-6">
-        
+
         {/* Analytics & Stats Quick Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="glass-panel-luxury p-4 rounded-2xl border border-white/10 flex items-center justify-between">
@@ -804,11 +912,10 @@ export default function AdminDashboardArabic() {
         <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab("create")}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
-              activeTab === "create"
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${activeTab === "create"
                 ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+              }`}
           >
             <PlusCircle className="w-4 h-4" />
             <span>{editingSlug ? "تعديل الصفحة الحالية" : "إنشاء صفحة هبوط جديدة"}</span>
@@ -816,11 +923,10 @@ export default function AdminDashboardArabic() {
 
           <button
             onClick={() => setActiveTab("pages")}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
-              activeTab === "pages"
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${activeTab === "pages"
                 ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+              }`}
           >
             <Layers className="w-4 h-4" />
             <span>إدارة الصفحات وتعديلها ({pages.length})</span>
@@ -828,11 +934,10 @@ export default function AdminDashboardArabic() {
 
           <button
             onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
-              activeTab === "settings"
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${activeTab === "settings"
                 ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+              }`}
           >
             <DollarSign className="w-4 h-4 text-emerald-300" />
             <span>إدارة وتعديل وإيقاف إعلانات Adsterra ({configuredAdsCount})</span>
@@ -840,11 +945,10 @@ export default function AdminDashboardArabic() {
 
           <button
             onClick={() => setActiveTab("media")}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
-              activeTab === "media"
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${activeTab === "media"
                 ? "bg-brand-500 text-white shadow-lg shadow-brand-500/30"
                 : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
+              }`}
           >
             <FolderOpen className="w-4 h-4" />
             <span>مدير الملفات والميديا ({uploadedFiles.length})</span>
@@ -854,11 +958,11 @@ export default function AdminDashboardArabic() {
         {/* TAB 1: CREATE OR EDIT LANDING PAGE + LIVE MOBILE SIMULATOR */}
         {activeTab === "create" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
+
             {/* Form Column */}
             <div className="lg:col-span-7 space-y-6">
               <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl relative">
-                
+
                 {/* Header of Form */}
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
                   <div>
@@ -1145,7 +1249,7 @@ export default function AdminDashboardArabic() {
 
                 {/* Inner Screen */}
                 <div className="rounded-[28px] overflow-hidden bg-[#070a12] border border-white/10 flex-1 flex flex-col justify-between text-center p-3 text-white relative">
-                  
+
                   {/* Header in simulator */}
                   <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
                     <span className="text-[10px] font-black text-brand-400">XTREN VIP 4K</span>
@@ -1355,7 +1459,7 @@ export default function AdminDashboardArabic() {
         {/* TAB 3: ADSTERRA CODES MANAGER WITH EDIT, ADD & TOGGLE ON/OFF */}
         {activeTab === "settings" && (
           <div className="space-y-6">
-            
+
             {/* Master Control Bar */}
             <div className="glass-panel-luxury rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-2xl relative overflow-hidden space-y-6">
               <div className="absolute top-0 left-0 w-80 h-80 bg-emerald-500/10 blur-[130px] pointer-events-none rounded-full" />
@@ -1381,11 +1485,10 @@ export default function AdminDashboardArabic() {
                   {/* Master Switch */}
                   <button
                     onClick={handleToggleMasterAds}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${
-                      masterAdsOn
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all ${masterAdsOn
                         ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
                         : "bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30"
-                    }`}
+                      }`}
                   >
                     <Power className="w-4 h-4" />
                     <span>{masterAdsOn ? "كافة الإعلانات: مفعلة 🟢" : "كافة الإعلانات: متوقفة مؤقتاً 🔴"}</span>
@@ -1413,13 +1516,12 @@ export default function AdminDashboardArabic() {
                   return (
                     <div
                       key={slot.key}
-                      className={`glass-card-subtle p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
-                        isSlotActive
+                      className={`glass-card-subtle p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${isSlotActive
                           ? "border-emerald-500/40 bg-emerald-950/15 shadow-lg shadow-emerald-950/30"
                           : isConfigured
-                          ? "border-amber-500/30 bg-amber-950/10 opacity-80"
-                          : "border-white/5 opacity-70"
-                      }`}
+                            ? "border-amber-500/30 bg-amber-950/10 opacity-80"
+                            : "border-white/5 opacity-70"
+                        }`}
                     >
                       {/* Top Header of Card with Toggle Switch */}
                       <div className="space-y-1.5">
@@ -1434,11 +1536,10 @@ export default function AdminDashboardArabic() {
                             onClick={() => handleToggleAdSlot(slot.key)}
                             disabled={!currentCode.trim()}
                             title={isSlotActive ? "إيقاف الإعلان مؤقتاً" : "تشغيل الإعلان"}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                              isSlotActive
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isSlotActive
                                 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
                                 : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
-                            }`}
+                              }`}
                           >
                             <span className={`w-2 h-2 rounded-full ${isSlotActive ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
                             <span>{isSlotActive ? "نشط ويعمل" : "متوقف مؤقتاً"}</span>

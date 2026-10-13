@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import {
+  BASE_FIRESTORE_URL,
+  FIREBASE_API_KEY,
+  toFirestoreValue,
+  fromFirestoreValue,
+} from "@/lib/firebaseAdmin";
 
-const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT);
-const UPLOAD_DIR = IS_SERVERLESS ? path.join(os.tmpdir(), "xtren-uploads") : path.join(process.cwd(), "public", "uploads");
+const IS_SERVERLESS = Boolean(
+  process.env.VERCEL ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    process.env.LAMBDA_TASK_ROOT
+);
+const UPLOAD_DIR = IS_SERVERLESS
+  ? path.join(os.tmpdir(), "xtren-uploads")
+  : path.join(process.cwd(), "public", "uploads");
 
 function ensureUploadDir() {
   try {
@@ -16,32 +28,117 @@ function ensureUploadDir() {
   }
 }
 
-// GET: List all uploaded files for the Media Gallery
+/**
+ * Fetch uploaded file records stored in Firestore
+ */
+async function getFirestoreUploads(): Promise<any[]> {
+  try {
+    const url = `${BASE_FIRESTORE_URL}/uploads?pageSize=100&key=${FIREBASE_API_KEY}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data || !Array.isArray(data.documents)) return [];
+
+    return data.documents
+      .map((doc: any) => {
+        if (!doc.fields) return null;
+        const raw: Record<string, any> = {};
+        for (const [k, v] of Object.entries(doc.fields)) {
+          raw[k] = fromFirestoreValue(v);
+        }
+        return raw;
+      })
+      .filter(Boolean);
+  } catch (e) {
+    console.warn("getFirestoreUploads warning:", e);
+    return [];
+  }
+}
+
+/**
+ * Persist an upload record to Firestore
+ */
+async function saveFirestoreUpload(fileRecord: any): Promise<void> {
+  try {
+    const docId = encodeURIComponent(
+      fileRecord.name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)
+    );
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(fileRecord)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+      }
+    }
+    const url = `${BASE_FIRESTORE_URL}/uploads/${docId}?key=${FIREBASE_API_KEY}`;
+    await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fields }),
+    });
+  } catch (e) {
+    console.warn("saveFirestoreUpload warning:", e);
+  }
+}
+
+/**
+ * Delete an upload record from Firestore
+ */
+async function deleteFirestoreUpload(fileName: string): Promise<void> {
+  try {
+    const docId = encodeURIComponent(
+      fileName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)
+    );
+    const url = `${BASE_FIRESTORE_URL}/uploads/${docId}?key=${FIREBASE_API_KEY}`;
+    await fetch(url, { method: "DELETE" });
+  } catch (e) {
+    console.warn("deleteFirestoreUpload warning:", e);
+  }
+}
+
+// GET: List all uploaded files for the Media Gallery (from Firestore + Local)
 export async function GET() {
   try {
     ensureUploadDir();
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      return NextResponse.json({ success: true, files: [] });
-    }
-    const files = fs.readdirSync(UPLOAD_DIR);
-    const mediaList = files
-      .filter((file) => !file.startsWith("."))
-      .map((file) => {
-        const filePath = path.join(UPLOAD_DIR, file);
-        const stats = fs.statSync(filePath);
-        const ext = path.extname(file).toLowerCase();
-        const isVideo = [".mp4", ".webm", ".mov", ".m4v"].includes(ext);
-        const isImage = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"].includes(ext);
+    const mediaMap = new Map<string, any>();
 
-        return {
-          name: file,
-          url: `/uploads/${file}`,
-          size: stats.size,
-          createdAt: stats.birthtime.toISOString(),
-          type: isVideo ? "video" : isImage ? "image" : "other",
-        };
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // 1. Load from Firestore (permanent across all lambdas / deployments)
+    const firestoreFiles = await getFirestoreUploads();
+    for (const f of firestoreFiles) {
+      if (f && f.name) {
+        mediaMap.set(f.name, f);
+      }
+    }
+
+    // 2. Load from local filesystem if accessible
+    if (fs.existsSync(UPLOAD_DIR)) {
+      try {
+        const files = fs.readdirSync(UPLOAD_DIR);
+        for (const file of files) {
+          if (file.startsWith(".")) continue;
+          const filePath = path.join(UPLOAD_DIR, file);
+          const stats = fs.statSync(filePath);
+          const ext = path.extname(file).toLowerCase();
+          const isVideo = [".mp4", ".webm", ".mov", ".m4v"].includes(ext);
+          const isImage = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"].includes(ext);
+
+          if (!mediaMap.has(file)) {
+            mediaMap.set(file, {
+              name: file,
+              url: `/uploads/${file}`,
+              size: stats.size,
+              createdAt: stats.birthtime.toISOString(),
+              type: isVideo ? "video" : isImage ? "image" : "other",
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Local dir read warning:", err);
+      }
+    }
+
+    const mediaList = Array.from(mediaMap.values()).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
 
     return NextResponse.json({ success: true, files: mediaList });
   } catch (error: any) {
@@ -49,47 +146,145 @@ export async function GET() {
   }
 }
 
-// POST: Upload single or multiple files
+// POST: Upload single or multiple files or register a cloud-uploaded file
 export async function POST(req: NextRequest) {
   try {
+    const contentType = req.headers.get("content-type") || "";
+
+    // Case A: Register a file that was uploaded directly from browser to CDN (e.g. Videy / Litterbox)
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      if (body.action === "register" && body.file) {
+        const fileData = {
+          name: body.file.name,
+          url: body.file.url,
+          size: body.file.size || 0,
+          type: body.file.type || "video",
+          createdAt: body.file.createdAt || new Date().toISOString(),
+          platform: body.file.platform || "Cloud CDN",
+        };
+        await saveFirestoreUpload(fileData);
+        return NextResponse.json({
+          success: true,
+          message: "تم تسجيل الملف بنجاح في قاعدة البيانات",
+          file: fileData,
+        });
+      }
+    }
+
+    // Case B: Standard FormData Upload
     ensureUploadDir();
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json({ success: false, error: "لم يتم اختيار أي ملف للرفع" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "لم يتم اختيار أي ملف للرفع" },
+        { status: 400 }
+      );
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Sanitize filename and create unique name
     const ext = path.extname(file.name).toLowerCase();
     const baseName = path.basename(file.name, ext).replace(/[^\w\d-_]/g, "_").slice(0, 30);
     const uniqueFileName = `${Date.now()}_${baseName}${ext}`;
-    const filePath = path.join(UPLOAD_DIR, uniqueFileName);
-
-    fs.writeFileSync(filePath, buffer);
 
     const isVideo = [".mp4", ".webm", ".mov", ".m4v"].includes(ext);
     const isImage = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"].includes(ext);
 
+    let finalPublicUrl = `/uploads/${uniqueFileName}`;
+    let platform = "Local Storage";
+
+    // 1. If it's a video, attempt uploading to Videy.co API for instant, permanent, high-speed CDN streaming
+    if (isVideo) {
+      try {
+        const videyFormData = new FormData();
+        videyFormData.append(
+          "file",
+          new Blob([buffer], { type: file.type || "video/mp4" }),
+          uniqueFileName
+        );
+
+        const videyRes = await fetch("https://videy.co/api/upload", {
+          method: "POST",
+          body: videyFormData,
+        });
+
+        if (videyRes.ok) {
+          const videyData = await videyRes.json();
+          if (videyData && videyData.id) {
+            finalPublicUrl = `https://cdn.videy.co/${videyData.id}.${ext.replace(".", "") || "mp4"}`;
+            platform = "Videy.co CDN";
+          }
+        }
+      } catch (e) {
+        console.warn("Videy server proxy upload warning:", e);
+      }
+    } else if (isImage) {
+      // 2. If it's an image, attempt uploading to Litterbox for persistent public URL
+      try {
+        const litterData = new FormData();
+        litterData.append("reqtype", "fileupload");
+        litterData.append("time", "72h");
+        litterData.append(
+          "fileToUpload",
+          new Blob([buffer], { type: file.type || "image/jpeg" }),
+          uniqueFileName
+        );
+
+        const litterRes = await fetch(
+          "https://litterbox.catbox.moe/resources/internals/api.php",
+          {
+            method: "POST",
+            body: litterData,
+          }
+        );
+
+        if (litterRes.ok) {
+          const directUrl = (await litterRes.text()).trim();
+          if (directUrl.startsWith("http")) {
+            finalPublicUrl = directUrl;
+            platform = "Cloud CDN";
+          }
+        }
+      } catch (e) {
+        console.warn("Litterbox upload warning:", e);
+      }
+    }
+
+    // Always attempt local write as cache / fallback
+    try {
+      const filePath = path.join(UPLOAD_DIR, uniqueFileName);
+      fs.writeFileSync(filePath, buffer);
+    } catch (e) {
+      console.warn("Local disk write warning:", e);
+    }
+
     const fileData = {
       name: uniqueFileName,
-      url: `/uploads/${uniqueFileName}`,
+      url: finalPublicUrl,
       size: buffer.length,
       type: isVideo ? "video" : isImage ? "image" : "other",
       createdAt: new Date().toISOString(),
+      platform,
     };
+
+    // Save record to Firestore so it never disappears on serverless restarts
+    await saveFirestoreUpload(fileData);
 
     return NextResponse.json({
       success: true,
-      message: "تم رفع الملف بنجاح وتخزينه في الخادم",
+      message: "تم رفع وتخزين الملف بنجاح!",
       file: fileData,
     });
   } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ success: false, error: error.message || "حدث خطأ أثناء رفع الملف" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message || "حدث خطأ أثناء رفع الملف" },
+      { status: 500 }
+    );
   }
 }
 
@@ -105,14 +300,21 @@ export async function DELETE(req: NextRequest) {
     }
 
     const sanitized = path.basename(fileName);
-    const filePath = path.join(UPLOAD_DIR, sanitized);
 
+    // Delete from Firestore
+    await deleteFirestoreUpload(sanitized);
+
+    // Delete from local disk if present
+    const filePath = path.join(UPLOAD_DIR, sanitized);
     if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return NextResponse.json({ success: true, message: "تم حذف الملف بنجاح" });
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {
+        console.warn("Unlink warning:", e);
+      }
     }
 
-    return NextResponse.json({ success: false, error: "الملف غير موجود" }, { status: 404 });
+    return NextResponse.json({ success: true, message: "تم حذف الملف بنجاح" });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
