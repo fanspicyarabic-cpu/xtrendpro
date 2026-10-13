@@ -1030,12 +1030,10 @@ export default function AdminDashboardArabic() {
               </button>
             </form>
 
-            <div className="pt-2 text-center border-t border-white/5 space-y-1.5">
-              <p className="text-[11px] text-gray-400">
-                كلمة المرور الافتراضية: <code className="text-brand-300 font-mono font-bold bg-white/5 px-2 py-0.5 rounded">admin2026</code>
-              </p>
-              <p className="text-[10px] text-gray-500">
-                (يمكنك تعديل كلمة المرور في أي وقت بعد الدخول من قسم الإعدادات)
+            <div className="pt-3 text-center border-t border-white/5">
+              <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>منطقة إدارة محمية ومشفرة بالكامل</span>
               </p>
             </div>
           </div>
