@@ -28,8 +28,9 @@ export async function generateMetadata(
   { params }: PageProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const { slug } = params;
-  const page = await getPageForServer(slug);
+  const rawSlug = params.slug || "";
+  const cleanSlug = rawSlug.trim().replace(/^\/+|\/+$/g, "");
+  const page = (await getPageForServer(cleanSlug)) || (await getPageForServer(rawSlug));
 
   if (!page) {
     return {
@@ -57,7 +58,7 @@ export async function generateMetadata(
     openGraph: {
       title: title,
       description: description,
-      url: `/p/${slug}`,
+      url: `/p/${cleanSlug}`,
       siteName: "XTREN Media",
       type: isVideo ? "video.other" : "website",
       locale: "ar_AR",
@@ -88,7 +89,7 @@ export async function generateMetadata(
       players: isVideo
         ? [
             {
-              playerUrl: `/p/${slug}`,
+              playerUrl: `/p/${cleanSlug}`,
               streamUrl: mediaInfo.url,
               width: 1280,
               height: 720,
@@ -101,8 +102,9 @@ export async function generateMetadata(
 
 // 2. Dynamic Arabic Landing Page with Smart Player & Multi-Zone Adsterra Placements
 export default async function DynamicLandingPageArabic({ params }: PageProps) {
-  const { slug } = params;
-  const page = await getPageForServer(slug);
+  const rawSlug = params.slug || "";
+  const cleanSlug = rawSlug.trim().replace(/^\/+|\/+$/g, "");
+  const page = (await getPageForServer(cleanSlug)) || (await getPageForServer(rawSlug));
 
   if (!page) {
     return (
@@ -113,7 +115,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
           </div>
           <h1 className="text-xl font-black">الصفحة غير متوفرة أو تم نقلها</h1>
           <p className="text-xs text-gray-400">
-            لم نتمكن من العثور على الصفحة المطلوبة (<code className="text-brand-400 font-mono">/p/{slug}</code>). تأكد من كتابة الرابط بشكل صحيح.
+            لم نتمكن من العثور على الصفحة المطلوبة (<code className="text-brand-400 font-mono">/p/{cleanSlug || rawSlug}</code>). تأكد من كتابة الرابط بشكل صحيح.
           </p>
           <div className="pt-2">
             <Link

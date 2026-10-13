@@ -355,6 +355,18 @@ export async function getAllPagesFromFirebase(): Promise<LandingPageData[]> {
 }
 
 /**
+ * Normalizes slugs by removing leading/trailing slashes, whitespace, and decoding URI
+ */
+export function normalizeSlug(s: string): string {
+  if (!s) return "";
+  let decoded = s;
+  try {
+    decoded = decodeURIComponent(s);
+  } catch { }
+  return decoded.trim().replace(/^\/+|\/+$/g, "");
+}
+
+/**
  * Fetch a single landing page by slug with local persistent storage + Firestore fallback.
  */
 export async function getFirebasePageBySlug(
@@ -362,23 +374,24 @@ export async function getFirebasePageBySlug(
 ): Promise<LandingPageData | null> {
   if (!slug) return null;
   const rawSlug = slug.trim();
-  let decodedSlug = rawSlug;
-  try {
-    decodedSlug = decodeURIComponent(rawSlug).trim();
-  } catch { }
+  const target = normalizeSlug(slug);
 
   // 1. Check local persistent storage first for fast response
   const localPages = readLocalPages();
-  const matchedLocal = localPages.find(
-    (p) =>
+  const matchedLocal = localPages.find((p) => {
+    const pNorm = normalizeSlug(p.slug);
+    return (
+      pNorm === target ||
+      pNorm.toLowerCase() === target.toLowerCase() ||
       p.slug === rawSlug ||
-      p.slug === decodedSlug ||
+      p.slug === target ||
       encodeURIComponent(p.slug) === rawSlug
-  );
+    );
+  });
 
   // 2. Also check Cloud Firestore
   try {
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(decodedSlug)}?key=${FIREBASE_API_KEY}`;
+    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(target)}?key=${FIREBASE_API_KEY}`;
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const doc = await res.json();
@@ -399,7 +412,7 @@ export async function savePageToFirebase(
   page: LandingPageData
 ): Promise<LandingPageData> {
   const timestamp = new Date().toISOString();
-  const cleanSlug = page.slug.trim();
+  const cleanSlug = normalizeSlug(page.slug) || page.slug.trim();
   const pageWithTime: LandingPageData = {
     ...page,
     slug: cleanSlug,
@@ -413,7 +426,7 @@ export async function savePageToFirebase(
   try {
     const currentPages = readLocalPages();
     const index = currentPages.findIndex(
-      (p) => p.slug === cleanSlug || decodeURIComponent(p.slug) === cleanSlug
+      (p) => normalizeSlug(p.slug) === cleanSlug
     );
     if (index >= 0) {
       currentPages[index] = { ...currentPages[index], ...pageWithTime };
@@ -458,20 +471,20 @@ export async function savePageToFirebase(
 export async function deletePageFromFirebase(slug: string): Promise<boolean> {
   if (!slug) return false;
   const rawSlug = slug.trim();
-  let decodedSlug = rawSlug;
-  try {
-    decodedSlug = decodeURIComponent(rawSlug).trim();
-  } catch { }
+  const target = normalizeSlug(slug);
 
   // 1. Delete from local persistent storage
   try {
     const currentPages = readLocalPages();
-    const filtered = currentPages.filter(
-      (p) =>
+    const filtered = currentPages.filter((p) => {
+      const pNorm = normalizeSlug(p.slug);
+      return (
+        pNorm !== target &&
+        pNorm.toLowerCase() !== target.toLowerCase() &&
         p.slug !== rawSlug &&
-        p.slug !== decodedSlug &&
-        encodeURIComponent(p.slug) !== rawSlug
-    );
+        p.slug !== target
+      );
+    });
     writeLocalPages(filtered);
   } catch (localErr) {
     console.error("Local delete error:", localErr);
@@ -479,7 +492,7 @@ export async function deletePageFromFirebase(slug: string): Promise<boolean> {
 
   // 2. Dual-Sync: Delete from Cloud Firestore
   try {
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(decodedSlug)}?key=${FIREBASE_API_KEY}`;
+    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(target)}?key=${FIREBASE_API_KEY}`;
     await fetch(url, { method: "DELETE" });
   } catch (error) {
     console.warn(`Firestore delete warning for ${slug}:`, error);
