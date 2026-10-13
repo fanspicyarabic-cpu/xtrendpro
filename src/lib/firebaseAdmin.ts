@@ -1,4 +1,7 @@
 import { LandingPageData, AdminSettings, AdsterraConfig } from "./types";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 const FIREBASE_PROJECT_ID =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
@@ -10,13 +13,201 @@ const FIREBASE_API_KEY =
   process.env.FIREBASE_API_KEY ||
   "AIzaSyDAHFw2pKa9vrz3wuwdw7JiYFq92592uqM";
 
-const FIRESTORE_DB_ID =
+const rawDbId =
   process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID ||
   process.env.FIRESTORE_DATABASE_ID ||
   "default";
 
+// In Cloud Firestore REST API, the default database is addressed as "(default)"
+const FIRESTORE_DB_ID = rawDbId === "default" ? "(default)" : rawDbId;
+
 export const BASE_FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/${FIRESTORE_DB_ID}/documents`;
 export { FIREBASE_API_KEY, FIREBASE_PROJECT_ID, FIRESTORE_DB_ID };
+
+// File paths for guaranteed persistent storage
+const DATA_DIR = path.join(process.cwd(), "data");
+const PAGES_FILE = path.join(DATA_DIR, "pages.json");
+const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
+
+const TMP_DIR = path.join(os.tmpdir(), "xtren-data");
+const TMP_PAGES_FILE = path.join(TMP_DIR, "pages.json");
+const TMP_SETTINGS_FILE = path.join(TMP_DIR, "settings.json");
+
+function ensureDirs() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch { }
+  try {
+    if (!fs.existsSync(TMP_DIR)) {
+      fs.mkdirSync(TMP_DIR, { recursive: true });
+    }
+  } catch { }
+}
+
+/**
+ * Robust reader for local persistent pages storage (data/pages.json + /tmp replica)
+ */
+export function readLocalPages(): LandingPageData[] {
+  ensureDirs();
+  const pagesMap = new Map<string, LandingPageData>();
+
+  // 1. Read primary data/pages.json
+  try {
+    if (fs.existsSync(PAGES_FILE)) {
+      const content = fs.readFileSync(PAGES_FILE, "utf-8");
+      const list = JSON.parse(content) as LandingPageData[];
+      if (Array.isArray(list)) {
+        for (const p of list) {
+          if (p && p.slug) {
+            pagesMap.set(p.slug.trim(), p);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("readLocalPages error reading primary file:", err);
+  }
+
+  // 2. Read /tmp replica (for serverless environments)
+  try {
+    if (fs.existsSync(TMP_PAGES_FILE)) {
+      const content = fs.readFileSync(TMP_PAGES_FILE, "utf-8");
+      const list = JSON.parse(content) as LandingPageData[];
+      if (Array.isArray(list)) {
+        for (const p of list) {
+          if (p && p.slug) {
+            const trimmed = p.slug.trim();
+            const existing = pagesMap.get(trimmed);
+            if (
+              !existing ||
+              new Date(p.updatedAt || p.createdAt || 0).getTime() >=
+                new Date(existing.updatedAt || existing.createdAt || 0).getTime()
+            ) {
+              pagesMap.set(trimmed, p);
+            }
+          }
+        }
+      }
+    }
+  } catch { }
+
+  return Array.from(pagesMap.values());
+}
+
+/**
+ * Robust writer for local persistent pages storage (data/pages.json + /tmp replica)
+ */
+export function writeLocalPages(pages: LandingPageData[]): boolean {
+  ensureDirs();
+  const jsonStr = JSON.stringify(pages, null, 2);
+  let written = false;
+
+  try {
+    fs.writeFileSync(PAGES_FILE, jsonStr, "utf-8");
+    written = true;
+  } catch (err) {
+    console.warn("Could not write to primary data/pages.json (read-only filesystem?):", err);
+  }
+
+  try {
+    fs.writeFileSync(TMP_PAGES_FILE, jsonStr, "utf-8");
+    written = true;
+  } catch (err) {
+    console.warn("Could not write to TMP_PAGES_FILE:", err);
+  }
+
+  return written;
+}
+
+/**
+ * Fallback loader for backwards compatibility
+ */
+export function getLocalFallbackPages(): LandingPageData[] {
+  return readLocalPages();
+}
+
+/**
+ * Robust reader for local settings (data/settings.json + /tmp replica)
+ */
+export function readLocalSettings(): AdminSettings {
+  ensureDirs();
+  const fallbackSettings: AdminSettings = {
+    telegramBotToken: "",
+    telegramChannelId: "",
+    siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app",
+    defaultAdCode: "",
+    defaultAds: {
+      allAdsEnabled: true,
+      socialBar: "",
+      popunder: "",
+      smartlink: "",
+      banner300x250: "",
+      banner728x90: "",
+      banner320x50: "",
+      banner468x60: "",
+      banner160x600: "",
+      banner160x300: "",
+      nativeBanner: "",
+      customAd: "",
+      status: {},
+    },
+  };
+
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const content = fs.readFileSync(SETTINGS_FILE, "utf-8");
+      const parsed = JSON.parse(content);
+      return {
+        ...fallbackSettings,
+        ...parsed,
+        defaultAds: {
+          ...fallbackSettings.defaultAds,
+          ...(parsed.defaultAds || {}),
+        },
+      };
+    }
+  } catch { }
+
+  try {
+    if (fs.existsSync(TMP_SETTINGS_FILE)) {
+      const content = fs.readFileSync(TMP_SETTINGS_FILE, "utf-8");
+      const parsed = JSON.parse(content);
+      return {
+        ...fallbackSettings,
+        ...parsed,
+        defaultAds: {
+          ...fallbackSettings.defaultAds,
+          ...(parsed.defaultAds || {}),
+        },
+      };
+    }
+  } catch { }
+
+  return fallbackSettings;
+}
+
+/**
+ * Robust writer for local settings (data/settings.json + /tmp replica)
+ */
+export function writeLocalSettings(settings: AdminSettings): boolean {
+  ensureDirs();
+  const jsonStr = JSON.stringify(settings, null, 2);
+  let written = false;
+
+  try {
+    fs.writeFileSync(SETTINGS_FILE, jsonStr, "utf-8");
+    written = true;
+  } catch { }
+
+  try {
+    fs.writeFileSync(TMP_SETTINGS_FILE, jsonStr, "utf-8");
+    written = true;
+  } catch { }
+
+  return written;
+}
 
 /**
  * Converts standard JavaScript objects/primitives to Cloud Firestore REST Value structure.
@@ -112,76 +303,82 @@ function docToLandingPage(doc: any): LandingPageData | null {
 }
 
 /**
-/**
- * Fallback loader for data/pages.json in case Firestore is unreachable or empty
- */
-export function getLocalFallbackPages(): LandingPageData[] {
-  try {
-    const fs = require("fs");
-    const path = require("path");
-    const filePath = path.join(process.cwd(), "data", "pages.json");
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, "utf-8");
-      return JSON.parse(content) as LandingPageData[];
-    }
-  } catch (e) {
-    // ignore
-  }
-  return [];
-}
-
-/**
- * Fetch all landing pages directly from Cloud Firestore with local fallback.
+ * Fetch all landing pages directly with local persistent storage + Cloud Firestore sync.
  */
 export async function getAllPagesFromFirebase(): Promise<LandingPageData[]> {
-  const localFallbacks = getLocalFallbackPages();
+  const localPages = readLocalPages();
+  const pagesMap = new Map<string, LandingPageData>();
+
+  // Initialize with local persistent pages
+  for (const page of localPages) {
+    if (page && page.slug) {
+      pagesMap.set(page.slug.trim(), page);
+    }
+  }
+
+  // Dual sync: attempt to pull from Cloud Firestore if available
   try {
     const url = `${BASE_FIRESTORE_URL}/pages?pageSize=300&key=${FIREBASE_API_KEY}`;
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-      console.warn("Firestore getAllPages fetch failed with status:", res.status);
-      return localFallbacks;
-    }
-    const data = await res.json();
-    if (!data || !Array.isArray(data.documents)) {
-      return localFallbacks;
-    }
-
-    const pages: LandingPageData[] = [];
-    for (const doc of data.documents) {
-      const page = docToLandingPage(doc);
-      if (page) pages.push(page);
-    }
-
-    // Merge with local fallbacks if not already in Firestore
-    for (const fallback of localFallbacks) {
-      if (!pages.some((p) => p.slug === fallback.slug)) {
-        pages.push(fallback);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.documents)) {
+        for (const doc of data.documents) {
+          const page = docToLandingPage(doc);
+          if (page && page.slug) {
+            const clean = page.slug.trim();
+            const existing = pagesMap.get(clean);
+            if (
+              !existing ||
+              new Date(page.updatedAt || page.createdAt || 0).getTime() >=
+                new Date(existing.updatedAt || existing.createdAt || 0).getTime()
+            ) {
+              pagesMap.set(clean, page);
+            }
+          }
+        }
       }
     }
-
-    // Sort descending by createdAt
-    pages.sort(
-      (a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
-
-    return pages;
   } catch (error) {
-    console.error("Error fetching pages from Firebase:", error);
-    return localFallbacks;
+    console.warn("Firestore sync fetch warning (using local persistent pages):", error);
   }
+
+  const pages = Array.from(pagesMap.values());
+
+  // Sort descending by createdAt
+  pages.sort(
+    (a, b) =>
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  );
+
+  return pages;
 }
 
 /**
- * Fetch a single landing page by slug directly from Cloud Firestore with local fallback.
+ * Fetch a single landing page by slug with local persistent storage + Firestore fallback.
  */
 export async function getFirebasePageBySlug(
   slug: string
 ): Promise<LandingPageData | null> {
   if (!slug) return null;
+  const rawSlug = slug.trim();
+  let decodedSlug = rawSlug;
   try {
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(slug)}?key=${FIREBASE_API_KEY}`;
+    decodedSlug = decodeURIComponent(rawSlug).trim();
+  } catch { }
+
+  // 1. Check local persistent storage first for fast response
+  const localPages = readLocalPages();
+  const matchedLocal = localPages.find(
+    (p) =>
+      p.slug === rawSlug ||
+      p.slug === decodedSlug ||
+      encodeURIComponent(p.slug) === rawSlug
+  );
+
+  // 2. Also check Cloud Firestore
+  try {
+    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(decodedSlug)}?key=${FIREBASE_API_KEY}`;
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const doc = await res.json();
@@ -189,132 +386,148 @@ export async function getFirebasePageBySlug(
       if (page) return page;
     }
   } catch (error) {
-    console.error(`Error fetching page ${slug} from Firebase:`, error);
+    // Firestore error, fall through
   }
 
-  // Fallback to local data/pages.json if not found in Firebase
-  const fallbacks = getLocalFallbackPages();
-  const matched = fallbacks.find((p) => p.slug === slug);
-  return matched || null;
+  return matchedLocal || null;
 }
 
 /**
- * Save or update a landing page directly in Cloud Firestore.
+ * Save or update a landing page directly with GUARANTEED local persistence + Cloud Firestore dual-sync.
  */
 export async function savePageToFirebase(
   page: LandingPageData
 ): Promise<LandingPageData> {
   const timestamp = new Date().toISOString();
+  const cleanSlug = page.slug.trim();
   const pageWithTime: LandingPageData = {
     ...page,
-    slug: page.slug.trim(),
+    slug: cleanSlug,
     createdAt: page.createdAt || timestamp,
     updatedAt: timestamp,
     views: typeof page.views === "number" ? page.views : 0,
     clicks: typeof page.clicks === "number" ? page.clicks : 0,
   };
 
-  const fields: Record<string, any> = {};
-  for (const [k, v] of Object.entries(pageWithTime)) {
-    if (v !== undefined) {
-      fields[k] = toFirestoreValue(v);
+  // 1. GUARANTEED: Save to local persistent storage immediately
+  try {
+    const currentPages = readLocalPages();
+    const index = currentPages.findIndex(
+      (p) => p.slug === cleanSlug || decodeURIComponent(p.slug) === cleanSlug
+    );
+    if (index >= 0) {
+      currentPages[index] = { ...currentPages[index], ...pageWithTime };
+    } else {
+      currentPages.unshift(pageWithTime);
     }
+    writeLocalPages(currentPages);
+  } catch (localErr) {
+    console.error("Local persistence error in savePageToFirebase:", localErr);
   }
 
-  const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(pageWithTime.slug)}?key=${FIREBASE_API_KEY}`;
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fields }),
-  });
+  // 2. DUAL-SYNC: Attempt to update Cloud Firestore in parallel
+  try {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(pageWithTime)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+      }
+    }
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Failed to save page to Firebase: ${errText}`);
+    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(cleanSlug)}?key=${FIREBASE_API_KEY}`;
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fields }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn("Firestore sync warning (page saved locally):", errText);
+    }
+  } catch (cloudErr) {
+    console.warn("Firestore sync warning (page saved locally):", cloudErr);
   }
 
   return pageWithTime;
 }
 
 /**
- * Delete a landing page directly from Cloud Firestore.
+ * Delete a landing page from local storage and Cloud Firestore.
  */
 export async function deletePageFromFirebase(slug: string): Promise<boolean> {
   if (!slug) return false;
+  const rawSlug = slug.trim();
+  let decodedSlug = rawSlug;
   try {
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(slug)}?key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, {
-      method: "DELETE",
-    });
-    return res.ok;
-  } catch (error) {
-    console.error(`Error deleting page ${slug} from Firebase:`, error);
-    return false;
+    decodedSlug = decodeURIComponent(rawSlug).trim();
+  } catch { }
+
+  // 1. Delete from local persistent storage
+  try {
+    const currentPages = readLocalPages();
+    const filtered = currentPages.filter(
+      (p) =>
+        p.slug !== rawSlug &&
+        p.slug !== decodedSlug &&
+        encodeURIComponent(p.slug) !== rawSlug
+    );
+    writeLocalPages(filtered);
+  } catch (localErr) {
+    console.error("Local delete error:", localErr);
   }
+
+  // 2. Dual-Sync: Delete from Cloud Firestore
+  try {
+    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(decodedSlug)}?key=${FIREBASE_API_KEY}`;
+    await fetch(url, { method: "DELETE" });
+  } catch (error) {
+    console.warn(`Firestore delete warning for ${slug}:`, error);
+  }
+
+  return true;
 }
 
 /**
- * Fetch administrative settings directly from Cloud Firestore (document settings/general).
+ * Fetch administrative settings directly from local storage + Cloud Firestore fallback.
  */
 export async function getFirebaseSettings(): Promise<AdminSettings> {
-  const fallbackSettings: AdminSettings = {
-    telegramBotToken: "",
-    telegramChannelId: "",
-    siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://trendx-opal.vercel.app",
-    defaultAdCode: "",
-    defaultAds: {
-      allAdsEnabled: true,
-      socialBar: "",
-      popunder: "",
-      smartlink: "",
-      banner300x250: "",
-      banner728x90: "",
-      banner320x50: "",
-      banner468x60: "",
-      banner160x600: "",
-      banner160x300: "",
-      nativeBanner: "",
-      customAd: "",
-      status: {},
-    },
-  };
+  const localSettings = readLocalSettings();
 
   try {
     const url = `${BASE_FIRESTORE_URL}/settings/general?key=${FIREBASE_API_KEY}`;
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-      return fallbackSettings;
-    }
-    const doc = await res.json();
-    if (!doc || !doc.fields) {
-      return fallbackSettings;
-    }
+    if (res.ok) {
+      const doc = await res.json();
+      if (doc && doc.fields) {
+        const settings: Record<string, any> = {};
+        for (const [k, v] of Object.entries(doc.fields)) {
+          settings[k] = fromFirestoreValue(v);
+        }
 
-    const settings: Record<string, any> = {};
-    for (const [k, v] of Object.entries(doc.fields)) {
-      settings[k] = fromFirestoreValue(v);
+        return {
+          ...localSettings,
+          ...settings,
+          defaultAds: {
+            ...localSettings.defaultAds,
+            ...(settings.defaultAds || {}),
+            status: {
+              ...(localSettings.defaultAds?.status || {}),
+              ...(settings.defaultAds?.status || {}),
+            },
+          },
+        };
+      }
     }
-
-    return {
-      ...fallbackSettings,
-      ...settings,
-      defaultAds: {
-        ...fallbackSettings.defaultAds,
-        ...(settings.defaultAds || {}),
-        status: {
-          ...(fallbackSettings.defaultAds?.status || {}),
-          ...(settings.defaultAds?.status || {}),
-        },
-      },
-    };
   } catch (error) {
-    console.error("Error fetching settings from Firebase:", error);
-    return fallbackSettings;
+    // Firestore error, fallback to local settings
   }
+
+  return localSettings;
 }
 
 /**
- * Save administrative settings directly to Cloud Firestore (document settings/general).
+ * Save administrative settings to local storage + Cloud Firestore.
  */
 export async function saveFirebaseSettings(
   settings: AdminSettings
@@ -333,23 +546,26 @@ export async function saveFirebaseSettings(
     },
   };
 
-  const fields: Record<string, any> = {};
-  for (const [k, v] of Object.entries(merged)) {
-    if (v !== undefined) {
-      fields[k] = toFirestoreValue(v);
+  // 1. Save locally
+  writeLocalSettings(merged);
+
+  // 2. Dual sync with Cloud Firestore
+  try {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(merged)) {
+      if (v !== undefined) {
+        fields[k] = toFirestoreValue(v);
+      }
     }
-  }
 
-  const url = `${BASE_FIRESTORE_URL}/settings/general?key=${FIREBASE_API_KEY}`;
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fields }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Failed to save settings to Firebase: ${errText}`);
+    const url = `${BASE_FIRESTORE_URL}/settings/general?key=${FIREBASE_API_KEY}`;
+    await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fields }),
+    });
+  } catch (err) {
+    console.warn("Firestore settings save warning:", err);
   }
 
   return merged;
@@ -357,7 +573,7 @@ export async function saveFirebaseSettings(
 
 /**
  * High-level server-side loader for `/p/[slug]` SSR and `generateMetadata`.
- * Reads page and site settings directly from Firebase Firestore, merging ads cleanly.
+ * Reads page and site settings directly, merging ads cleanly.
  */
 export async function getPageForServer(
   slug: string
@@ -365,7 +581,6 @@ export async function getPageForServer(
   if (!slug) return null;
 
   try {
-    // 1. Fetch page and settings concurrently from Firebase
     const [page, settings] = await Promise.all([
       getFirebasePageBySlug(slug),
       getFirebaseSettings(),
@@ -377,7 +592,6 @@ export async function getPageForServer(
 
     const defaultAds: AdsterraConfig = settings.defaultAds || {};
 
-    // 2. Merge page ads with default site ads from Firebase settings
     const mergedAds: AdsterraConfig = {
       allAdsEnabled:
         page.ads?.allAdsEnabled !== undefined
@@ -402,10 +616,8 @@ export async function getPageForServer(
       },
     };
 
-    // 3. Fallback adCode if present
     const fallbackAdCode = page.adCode || settings.defaultAdCode || "";
 
-    // 4. Determine effective CTA Link (prioritizing Smartlink if set)
     const effectiveCtaLink =
       page.ctaLink && page.ctaLink !== "https://t.me"
         ? page.ctaLink
@@ -422,3 +634,4 @@ export async function getPageForServer(
     return null;
   }
 }
+

@@ -259,10 +259,10 @@ export default function AdminDashboardArabic() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch pages
-      const resPages = await fetch("/api/pages");
+      // 1. Fetch pages with cache busting
+      const resPages = await fetch(`/api/pages?t=${Date.now()}`, { cache: "no-store" });
       const pagesData = await resPages.json();
-      if (pagesData.success && pagesData.pages) {
+      if (pagesData.success && Array.isArray(pagesData.pages)) {
         setPages(pagesData.pages);
       }
 
@@ -607,11 +607,19 @@ export default function AdminDashboardArabic() {
       // Reset form
       handleCancelEdit();
 
-      // Reload pages
-      const resPages = await fetch("/api/pages");
-      const pagesData = await resPages.json();
-      if (pagesData.success) {
-        setPages(pagesData.pages);
+      // Reload pages with cache busting
+      try {
+        const resPages = await fetch(`/api/pages?t=${Date.now()}`, { cache: "no-store" });
+        const pagesData = await resPages.json();
+        if (pagesData.success && Array.isArray(pagesData.pages)) {
+          setPages(pagesData.pages);
+        } else if (data.page) {
+          setPages((prev) => [data.page, ...prev.filter((p) => p.slug !== data.page.slug)]);
+        }
+      } catch {
+        if (data.page) {
+          setPages((prev) => [data.page, ...prev.filter((p) => p.slug !== data.page.slug)]);
+        }
       }
 
       setActiveTab("pages");
