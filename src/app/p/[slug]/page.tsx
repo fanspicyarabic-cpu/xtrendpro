@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata, ResolvingMetadata } from "next";
-import { getPageForServer } from "@/lib/firebaseAdmin";
+import { getPageForServer, getFirebaseSettings } from "@/lib/firebaseAdmin";
 import { resolveMediaInfo } from "@/lib/mediaResolver";
 import { isAdActive } from "@/lib/types";
 import AdsterraContainer from "@/components/AdsterraContainer";
@@ -30,7 +30,11 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const rawSlug = params.slug || "";
   const cleanSlug = rawSlug.trim().replace(/^\/+|\/+$/g, "");
-  const page = (await getPageForServer(cleanSlug)) || (await getPageForServer(rawSlug));
+  
+  const [page, settings] = await Promise.all([
+    getPageForServer(cleanSlug).then(p => p || getPageForServer(rawSlug)),
+    getFirebaseSettings().catch(() => null),
+  ]);
 
   if (!page) {
     return {
@@ -52,38 +56,62 @@ export async function generateMetadata(
   const mediaInfo = resolveMediaInfo(rawMediaUrl);
   const isVideo = page.mediaType === "video" && (mediaInfo.kind === "video" || mediaInfo.kind === "embed");
 
-  const baseUrl =
+  const configuredBaseUrl =
+    settings?.siteBaseUrl && !settings.siteBaseUrl.includes("localhost")
+      ? settings.siteBaseUrl.trim()
+      : undefined;
+
+  const rawBaseUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
+    configuredBaseUrl ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://xtrendpro1.vercel.app");
+
+  const baseUrl = rawBaseUrl.startsWith("http")
+    ? rawBaseUrl.replace(/\/+$/, "")
+    : `https://${rawBaseUrl.replace(/\/+$/, "")}`;
 
   // Determine preview thumbnail: ALWAYS prioritize user's actual image or video poster
   let previewThumbnail = rawMediaUrl;
   if (isVideo) {
-    previewThumbnail = mediaInfo.posterUrl || rawMediaUrl;
+    previewThumbnail = mediaInfo.posterUrl || "";
   } else if (mediaInfo.url) {
     previewThumbnail = mediaInfo.url;
   }
+
+  // If thumbnail is relative or missing or points directly to a raw video file, ensure a valid absolute image URL
+  if (!previewThumbnail || previewThumbnail.match(/\.(mp4|mov|webm)(\?.*)?$/i)) {
+    previewThumbnail = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1200&q=80";
+  } else if (previewThumbnail.startsWith("/")) {
+    previewThumbnail = `${baseUrl}${previewThumbnail}`;
+  }
+
+  const pageFullUrl = `${baseUrl}/p/${cleanSlug}`;
 
   return {
     title: `${title} | منصة XTREN`,
     description: description,
     metadataBase: new URL(baseUrl),
+    alternates: {
+      canonical: pageFullUrl,
+    },
     openGraph: {
       title: title,
       description: description,
-      url: `/p/${cleanSlug}`,
+      url: pageFullUrl,
       siteName: "XTREN Media",
-      type: isVideo ? "video.other" : "website",
+      type: "website",
       locale: "ar_AR",
       images: [
         {
           url: previewThumbnail,
+          secureUrl: previewThumbnail,
           width: 1200,
           height: 630,
           alt: title,
+          type: "image/jpeg",
         },
       ],
-      videos: isVideo
+      videos: isVideo && mediaInfo.url
         ? [
             {
               url: mediaInfo.url,
@@ -95,20 +123,10 @@ export async function generateMetadata(
         : undefined,
     },
     twitter: {
-      card: isVideo ? "player" : "summary_large_image",
+      card: "summary_large_image",
       title: title,
       description: description,
       images: [previewThumbnail],
-      players: isVideo
-        ? [
-            {
-              playerUrl: `/p/${cleanSlug}`,
-              streamUrl: mediaInfo.url,
-              width: 1280,
-              height: 720,
-            },
-          ]
-        : undefined,
     },
   };
 }
@@ -357,12 +375,12 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
 
         </div>
 
-        {/* DEDICATED LEFT SIDEBAR AD (Desktop Skyscraper 160x600 or 160x300) */}
-        {(showBanner160_600 || showBanner160_300) && (
+        {/* DEDICATED LEFT SIDEBAR AD (Desktop Skyscraper 160x300 or 160x600) */}
+        {(showBanner160_300 || showBanner160_600) && (
           <aside aria-label="Sidebar Ad Left" className="hidden lg:flex flex-col items-center w-44 shrink-0 sticky top-20">
             <AdsterraContainer
-              adCode={showBanner160_600 ? ads.banner160x600 : ads.banner160x300}
-              slotName={showBanner160_600 ? "بانر جانبي (160x600)" : "بانر جانبي (160x300)"}
+              adCode={showBanner160_300 && ads.banner160x300 ? ads.banner160x300 : ads.banner160x600}
+              slotName={showBanner160_300 && ads.banner160x300 ? "بانر جانبي (160x300)" : "بانر جانبي (160x600)"}
               enabled={true}
             />
           </aside>

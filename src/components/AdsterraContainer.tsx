@@ -26,7 +26,7 @@ export const AdsterraContainer: React.FC<AdsterraContainerProps> = ({
   const cleanCode = adCode.trim();
 
   // Detect if this is a Banner script with atOptions (requires isolated iframe to prevent global atOptions collision and document.write issues)
-  const isBannerWithAtOptions = cleanCode.includes("atOptions") || cleanCode.includes("invoke.js");
+  const isBannerWithAtOptions = cleanCode.includes("atOptions");
 
   // Determine banner dimensions from atOptions if present
   let width = 300;

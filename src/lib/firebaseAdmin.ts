@@ -138,18 +138,29 @@ export function readLocalSettings(): AdminSettings {
     defaultAdCode: "",
     defaultAds: {
       allAdsEnabled: true,
-      socialBar: "",
-      popunder: "",
-      smartlink: "",
-      banner300x250: "",
-      banner728x90: "",
-      banner320x50: "",
-      banner468x60: "",
-      banner160x600: "",
-      banner160x300: "",
-      nativeBanner: "",
+      socialBar: "<script src=\"https://watchingprefecture.com/f3/63/59/f36359d33d0808e2511227bb83a483e5.js\"></script>",
+      popunder: "<script src=\"https://watchingprefecture.com/ec/91/5b/ec915bc484b625a9ef953e83069c82a6.js\"></script>",
+      smartlink: "https://watchingprefecture.com/n2ad63zrfi?key=675129b78f62605d0e476f7e4538d4a2",
+      nativeBanner: "<script async=\"async\" data-cfasync=\"false\" src=\"https://watchingprefecture.com/2dc18414b35656f629d293277282a4c4/invoke.js\"></script>\n<div id=\"container-2dc18414b35656f629d293277282a4c4\"></div>",
+      banner300x250: "<script>\n  atOptions = {\n    'key' : '57482a419ad24793e62e2c975c1911de',\n    'format' : 'iframe',\n    'height' : 250,\n    'width' : 300,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/57482a419ad24793e62e2c975c1911de/invoke.js\"></script>",
+      banner728x90: "<script>\n  atOptions = {\n    'key' : 'b7be66f54fe49fde8fa4734401c764e1',\n    'format' : 'iframe',\n    'height' : 90,\n    'width' : 728,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/b7be66f54fe49fde8fa4734401c764e1/invoke.js\"></script>",
+      banner320x50: "<script>\n  atOptions = {\n    'key' : '111eb5a61479d619e8fce3bf5045cbca',\n    'format' : 'iframe',\n    'height' : 50,\n    'width' : 320,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/111eb5a61479d619e8fce3bf5045cbca/invoke.js\"></script>",
+      banner468x60: "<script>\n  atOptions = {\n    'key' : 'c43c439d52e026f6d1b556c49b4d6108',\n    'format' : 'iframe',\n    'height' : 60,\n    'width' : 468,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/c43c439d52e026f6d1b556c49b4d6108/invoke.js\"></script>",
+      banner160x600: "<script>\n  atOptions = {\n    'key' : '3a64719334635e5dbcde0593407b9460',\n    'format' : 'iframe',\n    'height' : 600,\n    'width' : 160,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/3a64719334635e5dbcde0593407b9460/invoke.js\"></script>",
+      banner160x300: "<script>\n  atOptions = {\n    'key' : '8a9df504bf537ebc7d6a198f3eaa083c',\n    'format' : 'iframe',\n    'height' : 300,\n    'width' : 160,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/8a9df504bf537ebc7d6a198f3eaa083c/invoke.js\"></script>",
       customAd: "",
-      status: {},
+      status: {
+        socialBar: true,
+        popunder: true,
+        smartlink: true,
+        nativeBanner: true,
+        banner300x250: true,
+        banner728x90: true,
+        banner320x50: true,
+        banner468x60: true,
+        banner160x600: true,
+        banner160x300: true
+      },
     },
   };
 
@@ -516,17 +527,28 @@ export async function getFirebaseSettings(): Promise<AdminSettings> {
           settings[k] = fromFirestoreValue(v);
         }
 
+        const mergedDefaultAds: AdsterraConfig = {
+          ...(localSettings.defaultAds || {}),
+        };
+        if (settings.defaultAds) {
+          for (const [adKey, adVal] of Object.entries(settings.defaultAds)) {
+            if (adKey === "status") {
+              mergedDefaultAds.status = {
+                ...(localSettings.defaultAds?.status || {}),
+                ...(settings.defaultAds.status || {}),
+              };
+            } else if (typeof adVal === "string" && adVal.trim()) {
+              (mergedDefaultAds as any)[adKey] = adVal;
+            } else if (typeof adVal === "boolean") {
+              (mergedDefaultAds as any)[adKey] = adVal;
+            }
+          }
+        }
+
         return {
           ...localSettings,
           ...settings,
-          defaultAds: {
-            ...localSettings.defaultAds,
-            ...(settings.defaultAds || {}),
-            status: {
-              ...(localSettings.defaultAds?.status || {}),
-              ...(settings.defaultAds?.status || {}),
-            },
-          },
+          defaultAds: mergedDefaultAds,
         };
       }
     }
