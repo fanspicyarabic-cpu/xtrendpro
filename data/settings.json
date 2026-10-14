@@ -1,6 +1,6 @@
 {
   "telegramBotToken": "admin123",
-  "adminPassword": "admin2026",
+  "adminPassword": "0946506263",
   "telegramChannelId": "admin",
   "siteBaseUrl": "http://localhost:3000",
   "defaultAdCode": "",
@@ -14,7 +14,7 @@
     "allAdsEnabled": true,
     "socialBar": "<script src=\"https://watchingprefecture.com/f3/63/59/f36359d33d0808e2511227bb83a483e5.js\"></script>",
     "popunder": "<script src=\"https://watchingprefecture.com/ec/91/5b/ec915bc484b625a9ef953e83069c82a6.js\"></script>",
-    "smartlink": "https://watchingprefecture.com/n2ad63zrfi?key=675129b78f62605d0e476f7e4538d4a2",
+    "smartlink": "https://www.highperformanceformat.com/test-smartlink",
     "nativeBanner": "<script async=\"async\" data-cfasync=\"false\" src=\"https://watchingprefecture.com/2dc18414b35656f629d293277282a4c4/invoke.js\"></script>\n<div id=\"container-2dc18414b35656f629d293277282a4c4\"></div>",
     "banner300x250": "<script>\n  atOptions = {\n    'key' : '57482a419ad24793e62e2c975c1911de',\n    'format' : 'iframe',\n    'height' : 250,\n    'width' : 300,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/57482a419ad24793e62e2c975c1911de/invoke.js\"></script>",
     "banner728x90": "<script>\n  atOptions = {\n    'key' : 'b7be66f54fe49fde8fa4734401c764e1',\n    'format' : 'iframe',\n    'height' : 90,\n    'width' : 728,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/b7be66f54fe49fde8fa4734401c764e1/invoke.js\"></script>",
@@ -33,6 +33,9 @@
       "banner468x60": true,
       "banner160x600": true,
       "banner160x300": true
-    }
-  }
+    },
+    "customAd": ""
+  },
+  "test": "ok",
+  "testConnection": "2026-10-14T07:20:25.010Z"
 }

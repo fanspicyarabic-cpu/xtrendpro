@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { LandingPageData, AdminSettings, MediaType, XAuthUser, AdsterraConfig, isAdActive } from "@/lib/types";
+import { LandingPageData, AdminSettings, MediaType, XAuthUser, AdsterraConfig, isAdActive, DEFAULT_ADSTERRA_CONFIG } from "@/lib/types";
 import { resolveMediaUrl, detectMediaType, resolveMediaInfo, cleanMediaInputUrl } from "@/lib/mediaResolver";
 import SmartMediaPlayer from "@/components/SmartMediaPlayer";
 import {
@@ -192,21 +192,7 @@ export default function AdminDashboardArabic() {
     twitterAccessTokenSecret: "",
     siteBaseUrl: "http://localhost:3000",
     defaultAdCode: "",
-    defaultAds: {
-      allAdsEnabled: true,
-      socialBar: "",
-      popunder: "",
-      smartlink: "",
-      banner300x250: "",
-      banner728x90: "",
-      banner320x50: "",
-      banner468x60: "",
-      banner160x600: "",
-      banner160x300: "",
-      nativeBanner: "",
-      customAd: "",
-      status: {},
-    },
+    defaultAds: { ...DEFAULT_ADSTERRA_CONFIG },
   });
 
   // Twitter OAuth state

@@ -188,12 +188,14 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
       
       {/* 1. Global Popunder Script Execution (If Active) */}
       {showPopunder && ads.popunder && (
-        <AdsterraContainer adCode={ads.popunder} enabled={true} className="hidden" />
+        <AdsterraContainer adCode={ads.popunder} enabled={true} className="fixed pointer-events-none opacity-0 -z-50" />
       )}
 
       {/* 2. Global Social Bar Script Execution (If Active) */}
       {showSocialBar && ads.socialBar && (
-        <AdsterraContainer adCode={ads.socialBar} enabled={true} className="hidden" />
+        <aside aria-label="Social Bar" className="fixed bottom-0 inset-x-0 z-50 pointer-events-auto flex justify-center">
+          <AdsterraContainer adCode={ads.socialBar} enabled={true} />
+        </aside>
       )}
 
       {/* Dynamic Ambient Background Glow */}

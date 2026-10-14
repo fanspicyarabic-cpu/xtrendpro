@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import {
-  BASE_FIRESTORE_URL,
-  FIREBASE_API_KEY,
-  toFirestoreValue,
-  fromFirestoreValue,
-} from "@/lib/firebaseAdmin";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
 
 const IS_SERVERLESS = Boolean(
   process.env.VERCEL ||
@@ -36,22 +32,12 @@ function ensureUploadDir() {
  */
 async function getFirestoreUploads(): Promise<any[]> {
   try {
-    const url = `${BASE_FIRESTORE_URL}/uploads?pageSize=100&key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!data || !Array.isArray(data.documents)) return [];
-
-    return data.documents
-      .map((doc: any) => {
-        if (!doc.fields) return null;
-        const raw: Record<string, any> = {};
-        for (const [k, v] of Object.entries(doc.fields)) {
-          raw[k] = fromFirestoreValue(v);
-        }
-        return raw;
-      })
-      .filter(Boolean);
+    if (!db) return [];
+    const colRef = collection(db, "uploads");
+    const snap = await getDocs(colRef);
+    const files: any[] = [];
+    snap.forEach((d) => files.push(d.data()));
+    return files;
   } catch (e) {
     console.warn("getFirestoreUploads warning:", e);
     return [];
@@ -63,21 +49,11 @@ async function getFirestoreUploads(): Promise<any[]> {
  */
 async function saveFirestoreUpload(fileRecord: any): Promise<void> {
   try {
+    if (!db) return;
     const docId = encodeURIComponent(
       fileRecord.name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)
     );
-    const fields: Record<string, any> = {};
-    for (const [k, v] of Object.entries(fileRecord)) {
-      if (v !== undefined) {
-        fields[k] = toFirestoreValue(v);
-      }
-    }
-    const url = `${BASE_FIRESTORE_URL}/uploads/${docId}?key=${FIREBASE_API_KEY}`;
-    await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields }),
-    });
+    await setDoc(doc(db, "uploads", docId), fileRecord, { merge: true });
   } catch (e) {
     console.warn("saveFirestoreUpload warning:", e);
   }
@@ -88,11 +64,11 @@ async function saveFirestoreUpload(fileRecord: any): Promise<void> {
  */
 async function deleteFirestoreUpload(fileName: string): Promise<void> {
   try {
+    if (!db) return;
     const docId = encodeURIComponent(
       fileName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80)
     );
-    const url = `${BASE_FIRESTORE_URL}/uploads/${docId}?key=${FIREBASE_API_KEY}`;
-    await fetch(url, { method: "DELETE" });
+    await deleteDoc(doc(db, "uploads", docId));
   } catch (e) {
     console.warn("deleteFirestoreUpload warning:", e);
   }

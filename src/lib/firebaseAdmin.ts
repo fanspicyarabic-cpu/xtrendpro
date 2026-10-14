@@ -2,6 +2,19 @@ import { LandingPageData, AdminSettings, AdsterraConfig } from "./types";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import {
+  getFirestore,
+  Firestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  query,
+  orderBy,
+} from "firebase/firestore";
 
 const FIREBASE_PROJECT_ID =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
@@ -21,7 +34,26 @@ const FIRESTORE_DB_ID =
 export const BASE_FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/${FIRESTORE_DB_ID}/documents`;
 export { FIREBASE_API_KEY, FIREBASE_PROJECT_ID, FIRESTORE_DB_ID };
 
-// File paths for guaranteed persistent storage
+const firebaseConfig = {
+  apiKey: FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || `${FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${FIREBASE_PROJECT_ID}.firebasestorage.app`,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "484480782636",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:484480782636:web:15e117b334a79469e2dc89",
+};
+
+let app: FirebaseApp;
+let db: Firestore;
+
+try {
+  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  db = getFirestore(app, FIRESTORE_DB_ID);
+} catch (e) {
+  console.error("Firebase Admin SDK initialization error:", e);
+}
+
+// File paths for persistent storage backup
 const DATA_DIR = path.join(process.cwd(), "data");
 const PAGES_FILE = path.join(DATA_DIR, "pages.json");
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
@@ -44,6 +76,18 @@ function ensureDirs() {
 }
 
 /**
+ * Normalizes slugs by removing leading/trailing slashes, whitespace, and decoding URI
+ */
+export function normalizeSlug(s: string): string {
+  if (!s) return "";
+  let decoded = s;
+  try {
+    decoded = decodeURIComponent(s);
+  } catch { }
+  return decoded.trim().replace(/^\/+|\/+$/g, "");
+}
+
+/**
  * Robust reader for local persistent pages storage (data/pages.json + /tmp replica)
  */
 export function readLocalPages(): LandingPageData[] {
@@ -58,7 +102,7 @@ export function readLocalPages(): LandingPageData[] {
       if (Array.isArray(list)) {
         for (const p of list) {
           if (p && p.slug) {
-            pagesMap.set(p.slug.trim(), p);
+            pagesMap.set(normalizeSlug(p.slug), p);
           }
         }
       }
@@ -75,14 +119,14 @@ export function readLocalPages(): LandingPageData[] {
       if (Array.isArray(list)) {
         for (const p of list) {
           if (p && p.slug) {
-            const trimmed = p.slug.trim();
-            const existing = pagesMap.get(trimmed);
+            const key = normalizeSlug(p.slug);
+            const existing = pagesMap.get(key);
             if (
               !existing ||
               new Date(p.updatedAt || p.createdAt || 0).getTime() >=
                 new Date(existing.updatedAt || existing.createdAt || 0).getTime()
             ) {
-              pagesMap.set(trimmed, p);
+              pagesMap.set(key, p);
             }
           }
         }
@@ -104,26 +148,49 @@ export function writeLocalPages(pages: LandingPageData[]): boolean {
   try {
     fs.writeFileSync(PAGES_FILE, jsonStr, "utf-8");
     written = true;
-  } catch (err) {
-    console.warn("Could not write to primary data/pages.json (read-only filesystem?):", err);
-  }
+  } catch { }
 
   try {
     fs.writeFileSync(TMP_PAGES_FILE, jsonStr, "utf-8");
     written = true;
-  } catch (err) {
-    console.warn("Could not write to TMP_PAGES_FILE:", err);
-  }
+  } catch { }
 
   return written;
 }
 
-/**
- * Fallback loader for backwards compatibility
- */
 export function getLocalFallbackPages(): LandingPageData[] {
   return readLocalPages();
 }
+
+/**
+ * Default Adsterra Configuration with verified codes
+ */
+export const DEFAULT_ADSTERRA_CONFIG: AdsterraConfig = {
+  allAdsEnabled: true,
+  socialBar: "<script src=\"https://watchingprefecture.com/f3/63/59/f36359d33d0808e2511227bb83a483e5.js\"></script>",
+  popunder: "<script src=\"https://watchingprefecture.com/ec/91/5b/ec915bc484b625a9ef953e83069c82a6.js\"></script>",
+  smartlink: "https://watchingprefecture.com/n2ad63zrfi?key=675129b78f62605d0e476f7e4538d4a2",
+  nativeBanner: "<script async=\"async\" data-cfasync=\"false\" src=\"https://watchingprefecture.com/2dc18414b35656f629d293277282a4c4/invoke.js\"></script>\n<div id=\"container-2dc18414b35656f629d293277282a4c4\"></div>",
+  banner300x250: "<script>\n  atOptions = {\n    'key' : '57482a419ad24793e62e2c975c1911de',\n    'format' : 'iframe',\n    'height' : 250,\n    'width' : 300,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/57482a419ad24793e62e2c975c1911de/invoke.js\"></script>",
+  banner728x90: "<script>\n  atOptions = {\n    'key' : 'b7be66f54fe49fde8fa4734401c764e1',\n    'format' : 'iframe',\n    'height' : 90,\n    'width' : 728,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/b7be66f54fe49fde8fa4734401c764e1/invoke.js\"></script>",
+  banner320x50: "<script>\n  atOptions = {\n    'key' : '111eb5a61479d619e8fce3bf5045cbca',\n    'format' : 'iframe',\n    'height' : 50,\n    'width' : 320,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/111eb5a61479d619e8fce3bf5045cbca/invoke.js\"></script>",
+  banner468x60: "<script>\n  atOptions = {\n    'key' : 'c43c439d52e026f6d1b556c49b4d6108',\n    'format' : 'iframe',\n    'height' : 60,\n    'width' : 468,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/c43c439d52e026f6d1b556c49b4d6108/invoke.js\"></script>",
+  banner160x600: "<script>\n  atOptions = {\n    'key' : '3a64719334635e5dbcde0593407b9460',\n    'format' : 'iframe',\n    'height' : 600,\n    'width' : 160,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/3a64719334635e5dbcde0593407b9460/invoke.js\"></script>",
+  banner160x300: "<script>\n  atOptions = {\n    'key' : '8a9df504bf537ebc7d6a198f3eaa083c',\n    'format' : 'iframe',\n    'height' : 300,\n    'width' : 160,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/8a9df504bf537ebc7d6a198f3eaa083c/invoke.js\"></script>",
+  customAd: "",
+  status: {
+    socialBar: true,
+    popunder: true,
+    smartlink: true,
+    nativeBanner: true,
+    banner300x250: true,
+    banner728x90: true,
+    banner320x50: true,
+    banner468x60: true,
+    banner160x600: true,
+    banner160x300: true,
+  },
+};
 
 /**
  * Robust reader for local settings (data/settings.json + /tmp replica)
@@ -131,37 +198,12 @@ export function getLocalFallbackPages(): LandingPageData[] {
 export function readLocalSettings(): AdminSettings {
   ensureDirs();
   const fallbackSettings: AdminSettings = {
-    adminPassword: process.env.ADMIN_PASSWORD || "admin2026",
-    telegramBotToken: "",
-    telegramChannelId: "",
-    siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://xtren-hub-2026.web.app",
+    adminPassword: process.env.ADMIN_PASSWORD || "0946506263",
+    telegramBotToken: "admin123",
+    telegramChannelId: "admin",
+    siteBaseUrl: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
     defaultAdCode: "",
-    defaultAds: {
-      allAdsEnabled: true,
-      socialBar: "<script src=\"https://watchingprefecture.com/f3/63/59/f36359d33d0808e2511227bb83a483e5.js\"></script>",
-      popunder: "<script src=\"https://watchingprefecture.com/ec/91/5b/ec915bc484b625a9ef953e83069c82a6.js\"></script>",
-      smartlink: "https://watchingprefecture.com/n2ad63zrfi?key=675129b78f62605d0e476f7e4538d4a2",
-      nativeBanner: "<script async=\"async\" data-cfasync=\"false\" src=\"https://watchingprefecture.com/2dc18414b35656f629d293277282a4c4/invoke.js\"></script>\n<div id=\"container-2dc18414b35656f629d293277282a4c4\"></div>",
-      banner300x250: "<script>\n  atOptions = {\n    'key' : '57482a419ad24793e62e2c975c1911de',\n    'format' : 'iframe',\n    'height' : 250,\n    'width' : 300,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/57482a419ad24793e62e2c975c1911de/invoke.js\"></script>",
-      banner728x90: "<script>\n  atOptions = {\n    'key' : 'b7be66f54fe49fde8fa4734401c764e1',\n    'format' : 'iframe',\n    'height' : 90,\n    'width' : 728,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/b7be66f54fe49fde8fa4734401c764e1/invoke.js\"></script>",
-      banner320x50: "<script>\n  atOptions = {\n    'key' : '111eb5a61479d619e8fce3bf5045cbca',\n    'format' : 'iframe',\n    'height' : 50,\n    'width' : 320,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/111eb5a61479d619e8fce3bf5045cbca/invoke.js\"></script>",
-      banner468x60: "<script>\n  atOptions = {\n    'key' : 'c43c439d52e026f6d1b556c49b4d6108',\n    'format' : 'iframe',\n    'height' : 60,\n    'width' : 468,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/c43c439d52e026f6d1b556c49b4d6108/invoke.js\"></script>",
-      banner160x600: "<script>\n  atOptions = {\n    'key' : '3a64719334635e5dbcde0593407b9460',\n    'format' : 'iframe',\n    'height' : 600,\n    'width' : 160,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/3a64719334635e5dbcde0593407b9460/invoke.js\"></script>",
-      banner160x300: "<script>\n  atOptions = {\n    'key' : '8a9df504bf537ebc7d6a198f3eaa083c',\n    'format' : 'iframe',\n    'height' : 300,\n    'width' : 160,\n    'params' : {}\n  };\n</script>\n<script src=\"https://watchingprefecture.com/8a9df504bf537ebc7d6a198f3eaa083c/invoke.js\"></script>",
-      customAd: "",
-      status: {
-        socialBar: true,
-        popunder: true,
-        smartlink: true,
-        nativeBanner: true,
-        banner300x250: true,
-        banner728x90: true,
-        banner320x50: true,
-        banner468x60: true,
-        banner160x600: true,
-        banner160x300: true
-      },
-    },
+    defaultAds: { ...DEFAULT_ADSTERRA_CONFIG },
   };
 
   try {
@@ -172,8 +214,12 @@ export function readLocalSettings(): AdminSettings {
         ...fallbackSettings,
         ...parsed,
         defaultAds: {
-          ...fallbackSettings.defaultAds,
+          ...DEFAULT_ADSTERRA_CONFIG,
           ...(parsed.defaultAds || {}),
+          status: {
+            ...DEFAULT_ADSTERRA_CONFIG.status,
+            ...(parsed.defaultAds?.status || {}),
+          },
         },
       };
     }
@@ -187,8 +233,12 @@ export function readLocalSettings(): AdminSettings {
         ...fallbackSettings,
         ...parsed,
         defaultAds: {
-          ...fallbackSettings.defaultAds,
+          ...DEFAULT_ADSTERRA_CONFIG,
           ...(parsed.defaultAds || {}),
+          status: {
+            ...DEFAULT_ADSTERRA_CONFIG.status,
+            ...(parsed.defaultAds?.status || {}),
+          },
         },
       };
     }
@@ -219,137 +269,47 @@ export function writeLocalSettings(settings: AdminSettings): boolean {
 }
 
 /**
- * Converts standard JavaScript objects/primitives to Cloud Firestore REST Value structure.
- */
-export function toFirestoreValue(val: any): any {
-  if (val === null || val === undefined) {
-    return { nullValue: null };
-  }
-  if (typeof val === "boolean") {
-    return { booleanValue: val };
-  }
-  if (typeof val === "number") {
-    return Number.isInteger(val)
-      ? { integerValue: String(val) }
-      : { doubleValue: val };
-  }
-  if (typeof val === "string") {
-    return { stringValue: val };
-  }
-  if (Array.isArray(val)) {
-    return {
-      arrayValue: {
-        values: val.map(toFirestoreValue),
-      },
-    };
-  }
-  if (typeof val === "object") {
-    const fields: Record<string, any> = {};
-    for (const [k, v] of Object.entries(val)) {
-      if (v !== undefined) {
-        fields[k] = toFirestoreValue(v);
-      }
-    }
-    return { mapValue: { fields } };
-  }
-  return { stringValue: String(val) };
-}
-
-/**
- * Converts Cloud Firestore REST Value structure back to native JavaScript data.
- */
-export function fromFirestoreValue(val: any): any {
-  if (!val || typeof val !== "object") return null;
-  if ("stringValue" in val) return val.stringValue;
-  if ("integerValue" in val) return Number(val.integerValue);
-  if ("doubleValue" in val) return Number(val.doubleValue);
-  if ("booleanValue" in val) return val.booleanValue;
-  if ("nullValue" in val) return null;
-  if ("arrayValue" in val) {
-    return (val.arrayValue.values || []).map(fromFirestoreValue);
-  }
-  if ("mapValue" in val) {
-    const res: Record<string, any> = {};
-    const fields = val.mapValue.fields || {};
-    for (const [k, v] of Object.entries(fields)) {
-      res[k] = fromFirestoreValue(v);
-    }
-    return res;
-  }
-  return null;
-}
-
-/**
- * Helper to transform a raw Firestore document to a LandingPageData object.
- */
-function docToLandingPage(doc: any): LandingPageData | null {
-  if (!doc || !doc.fields) return null;
-  const raw: Record<string, any> = {};
-  for (const [k, v] of Object.entries(doc.fields)) {
-    raw[k] = fromFirestoreValue(v);
-  }
-
-  const slug = raw.slug || (doc.name ? doc.name.split("/").pop() : "");
-  if (!slug) return null;
-
-  return {
-    slug,
-    title: raw.title || "عرض حصري",
-    description: raw.description || "",
-    mediaUrl: raw.mediaUrl || "",
-    mediaType: raw.mediaType === "video" ? "video" : "image",
-    adCode: raw.adCode || "",
-    ads: raw.ads || {},
-    useDefaultAds: raw.useDefaultAds !== undefined ? raw.useDefaultAds : true,
-    ctaText: raw.ctaText || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
-    ctaLink: raw.ctaLink || "https://t.me",
-    views: typeof raw.views === "number" ? raw.views : 0,
-    clicks: typeof raw.clicks === "number" ? raw.clicks : 0,
-    createdAt: raw.createdAt || new Date().toISOString(),
-    updatedAt: raw.updatedAt || new Date().toISOString(),
-    tags: Array.isArray(raw.tags) ? raw.tags : [],
-  };
-}
-
-/**
- * Fetch all landing pages directly with local persistent storage + Cloud Firestore sync.
+ * Fetch all landing pages directly via official Firebase Firestore SDK
+ * with persistent local storage dual-sync.
  */
 export async function getAllPagesFromFirebase(): Promise<LandingPageData[]> {
-  const localPages = readLocalPages();
   const pagesMap = new Map<string, LandingPageData>();
 
-  // Initialize with local persistent pages
-  for (const page of localPages) {
-    if (page && page.slug) {
-      pagesMap.set(page.slug.trim(), page);
-    }
-  }
-
-  // Dual sync: attempt to pull from Cloud Firestore if available
+  // 1. Direct fetch from Cloud Firestore database
   try {
-    const url = `${BASE_FIRESTORE_URL}/pages?pageSize=300&key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.documents)) {
-        for (const doc of data.documents) {
-          const page = docToLandingPage(doc);
-          if (page && page.slug) {
-            const clean = page.slug.trim();
-            const existing = pagesMap.get(clean);
-            if (
-              !existing ||
-              new Date(page.updatedAt || page.createdAt || 0).getTime() >=
-                new Date(existing.updatedAt || existing.createdAt || 0).getTime()
-            ) {
-              pagesMap.set(clean, page);
-            }
-          }
+    if (db) {
+      const colRef = collection(db, "pages");
+      const snapshot = await getDocs(colRef);
+      snapshot.forEach((d) => {
+        const raw = d.data() as LandingPageData;
+        const slug = raw.slug || d.id;
+        if (slug) {
+          const norm = normalizeSlug(slug);
+          pagesMap.set(norm, {
+            ...raw,
+            slug: norm || slug,
+          });
         }
-      }
+      });
     }
   } catch (error) {
-    console.warn("Firestore sync fetch warning (using local persistent pages):", error);
+    console.error("Firestore SDK getAllPagesFromFirebase error:", error);
+  }
+
+  // 2. Merge with local persistent storage (ensures no page is ever lost)
+  const localList = readLocalPages();
+  for (const page of localList) {
+    if (page && page.slug) {
+      const norm = normalizeSlug(page.slug);
+      const existing = pagesMap.get(norm);
+      if (
+        !existing ||
+        new Date(page.updatedAt || page.createdAt || 0).getTime() >
+          new Date(existing.updatedAt || existing.createdAt || 0).getTime()
+      ) {
+        pagesMap.set(norm, page);
+      }
+    }
   }
 
   const pages = Array.from(pagesMap.values());
@@ -360,23 +320,16 @@ export async function getAllPagesFromFirebase(): Promise<LandingPageData[]> {
       new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
   );
 
+  // Sync to local file storage for reliable backup
+  if (pages.length > 0) {
+    writeLocalPages(pages);
+  }
+
   return pages;
 }
 
 /**
- * Normalizes slugs by removing leading/trailing slashes, whitespace, and decoding URI
- */
-export function normalizeSlug(s: string): string {
-  if (!s) return "";
-  let decoded = s;
-  try {
-    decoded = decodeURIComponent(s);
-  } catch { }
-  return decoded.trim().replace(/^\/+|\/+$/g, "");
-}
-
-/**
- * Fetch a single landing page by slug with local persistent storage + Firestore fallback.
+ * Fetch a single landing page by slug via official Firestore SDK + local fallback.
  */
 export async function getFirebasePageBySlug(
   slug: string
@@ -385,7 +338,32 @@ export async function getFirebasePageBySlug(
   const rawSlug = slug.trim();
   const target = normalizeSlug(slug);
 
-  // 1. Check local persistent storage first for fast response
+  // 1. Query Cloud Firestore
+  try {
+    if (db) {
+      // Try normalized slug first
+      let docRef = doc(db, "pages", target);
+      let snap = await getDoc(docRef);
+
+      // If not found, try raw slug
+      if (!snap.exists() && rawSlug !== target) {
+        docRef = doc(db, "pages", rawSlug);
+        snap = await getDoc(docRef);
+      }
+
+      if (snap.exists()) {
+        const data = snap.data() as LandingPageData;
+        return {
+          ...data,
+          slug: data.slug || target,
+        };
+      }
+    }
+  } catch (error) {
+    console.warn("Firestore getFirebasePageBySlug warning:", error);
+  }
+
+  // 2. Fallback to local persistent storage
   const localPages = readLocalPages();
   const matchedLocal = localPages.find((p) => {
     const pNorm = normalizeSlug(p.slug);
@@ -398,24 +376,11 @@ export async function getFirebasePageBySlug(
     );
   });
 
-  // 2. Also check Cloud Firestore
-  try {
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(target)}?key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (res.ok) {
-      const doc = await res.json();
-      const page = docToLandingPage(doc);
-      if (page) return page;
-    }
-  } catch (error) {
-    // Firestore error, fall through
-  }
-
   return matchedLocal || null;
 }
 
 /**
- * Save or update a landing page directly with GUARANTEED local persistence + Cloud Firestore dual-sync.
+ * Save or update a landing page directly in Cloud Firestore + local storage.
  */
 export async function savePageToFirebase(
   page: LandingPageData
@@ -431,7 +396,17 @@ export async function savePageToFirebase(
     clicks: typeof page.clicks === "number" ? page.clicks : 0,
   };
 
-  // 1. GUARANTEED: Save to local persistent storage immediately
+  // 1. Direct write to Cloud Firestore
+  try {
+    if (db) {
+      const docRef = doc(db, "pages", cleanSlug);
+      await setDoc(docRef, pageWithTime, { merge: true });
+    }
+  } catch (cloudErr) {
+    console.error("Firestore savePageToFirebase error:", cloudErr);
+  }
+
+  // 2. Guaranteed local persistent storage write
   try {
     const currentPages = readLocalPages();
     const index = currentPages.findIndex(
@@ -447,42 +422,30 @@ export async function savePageToFirebase(
     console.error("Local persistence error in savePageToFirebase:", localErr);
   }
 
-  // 2. DUAL-SYNC: Attempt to update Cloud Firestore in parallel
-  try {
-    const fields: Record<string, any> = {};
-    for (const [k, v] of Object.entries(pageWithTime)) {
-      if (v !== undefined) {
-        fields[k] = toFirestoreValue(v);
-      }
-    }
-
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(cleanSlug)}?key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields }),
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn("Firestore sync warning (page saved locally):", errText);
-    }
-  } catch (cloudErr) {
-    console.warn("Firestore sync warning (page saved locally):", cloudErr);
-  }
-
   return pageWithTime;
 }
 
 /**
- * Delete a landing page from local storage and Cloud Firestore.
+ * Delete a landing page from Cloud Firestore and local storage.
  */
 export async function deletePageFromFirebase(slug: string): Promise<boolean> {
   if (!slug) return false;
   const rawSlug = slug.trim();
   const target = normalizeSlug(slug);
 
-  // 1. Delete from local persistent storage
+  // 1. Delete from Cloud Firestore
+  try {
+    if (db) {
+      await deleteDoc(doc(db, "pages", target));
+      if (rawSlug !== target) {
+        await deleteDoc(doc(db, "pages", rawSlug)).catch(() => {});
+      }
+    }
+  } catch (error) {
+    console.error("Firestore deletePageFromFirebase error:", error);
+  }
+
+  // 2. Delete from local storage
   try {
     const currentPages = readLocalPages();
     const filtered = currentPages.filter((p) => {
@@ -496,71 +459,68 @@ export async function deletePageFromFirebase(slug: string): Promise<boolean> {
     });
     writeLocalPages(filtered);
   } catch (localErr) {
-    console.error("Local delete error:", localErr);
-  }
-
-  // 2. Dual-Sync: Delete from Cloud Firestore
-  try {
-    const url = `${BASE_FIRESTORE_URL}/pages/${encodeURIComponent(target)}?key=${FIREBASE_API_KEY}`;
-    await fetch(url, { method: "DELETE" });
-  } catch (error) {
-    console.warn(`Firestore delete warning for ${slug}:`, error);
+    console.error("Local persistence delete error:", localErr);
   }
 
   return true;
 }
 
 /**
- * Fetch administrative settings directly from local storage + Cloud Firestore fallback.
+ * Fetch administrative settings directly from Cloud Firestore + local storage fallback.
+ * Guarantees that default Adsterra codes are NEVER blank.
  */
 export async function getFirebaseSettings(): Promise<AdminSettings> {
   const localSettings = readLocalSettings();
 
   try {
-    const url = `${BASE_FIRESTORE_URL}/settings/general?key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, { cache: "no-store" });
-    if (res.ok) {
-      const doc = await res.json();
-      if (doc && doc.fields) {
-        const settings: Record<string, any> = {};
-        for (const [k, v] of Object.entries(doc.fields)) {
-          settings[k] = fromFirestoreValue(v);
-        }
+    if (db) {
+      const docRef = doc(db, "settings", "general");
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const remoteSettings = snap.data() as AdminSettings;
 
+        // Ensure defaultAds is properly populated and not blank
         const mergedDefaultAds: AdsterraConfig = {
+          ...DEFAULT_ADSTERRA_CONFIG,
           ...(localSettings.defaultAds || {}),
+          ...(remoteSettings.defaultAds || {}),
+          status: {
+            ...DEFAULT_ADSTERRA_CONFIG.status,
+            ...(localSettings.defaultAds?.status || {}),
+            ...(remoteSettings.defaultAds?.status || {}),
+          },
         };
-        if (settings.defaultAds) {
-          for (const [adKey, adVal] of Object.entries(settings.defaultAds)) {
-            if (adKey === "status") {
-              mergedDefaultAds.status = {
-                ...(localSettings.defaultAds?.status || {}),
-                ...(settings.defaultAds.status || {}),
-              };
-            } else if (typeof adVal === "string" && adVal.trim()) {
-              (mergedDefaultAds as any)[adKey] = adVal;
-            } else if (typeof adVal === "boolean") {
-              (mergedDefaultAds as any)[adKey] = adVal;
-            }
+
+        // If any slot is empty string in remote, use default verified Adsterra codes
+        for (const key of Object.keys(DEFAULT_ADSTERRA_CONFIG) as (keyof AdsterraConfig)[]) {
+          if (key === "status" || key === "allAdsEnabled" || key === "customAd") continue;
+          const remoteVal = (remoteSettings.defaultAds as any)?.[key];
+          if (!remoteVal || (typeof remoteVal === "string" && !remoteVal.trim())) {
+            (mergedDefaultAds as any)[key] = (DEFAULT_ADSTERRA_CONFIG as any)[key];
           }
         }
 
-        return {
+        const merged: AdminSettings = {
           ...localSettings,
-          ...settings,
+          ...remoteSettings,
+          adminPassword: remoteSettings.adminPassword || localSettings.adminPassword || "0946506263",
           defaultAds: mergedDefaultAds,
         };
+
+        // Cache locally
+        writeLocalSettings(merged);
+        return merged;
       }
     }
   } catch (error) {
-    // Firestore error, fallback to local settings
+    console.warn("Firestore getFirebaseSettings error (using local):", error);
   }
 
   return localSettings;
 }
 
 /**
- * Save administrative settings to local storage + Cloud Firestore.
+ * Save administrative settings to Cloud Firestore + local storage.
  */
 export async function saveFirebaseSettings(
   settings: AdminSettings
@@ -570,43 +530,36 @@ export async function saveFirebaseSettings(
     ...current,
     ...settings,
     defaultAds: {
+      ...DEFAULT_ADSTERRA_CONFIG,
       ...current.defaultAds,
       ...(settings.defaultAds || {}),
       status: {
+        ...DEFAULT_ADSTERRA_CONFIG.status,
         ...(current.defaultAds?.status || {}),
         ...(settings.defaultAds?.status || {}),
       },
     },
   };
 
-  // 1. Save locally
-  writeLocalSettings(merged);
-
-  // 2. Dual sync with Cloud Firestore
+  // 1. Direct write to Cloud Firestore
   try {
-    const fields: Record<string, any> = {};
-    for (const [k, v] of Object.entries(merged)) {
-      if (v !== undefined) {
-        fields[k] = toFirestoreValue(v);
-      }
+    if (db) {
+      const docRef = doc(db, "settings", "general");
+      await setDoc(docRef, merged, { merge: true });
     }
-
-    const url = `${BASE_FIRESTORE_URL}/settings/general?key=${FIREBASE_API_KEY}`;
-    await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields }),
-    });
   } catch (err) {
-    console.warn("Firestore settings save warning:", err);
+    console.error("Firestore saveFirebaseSettings error:", err);
   }
+
+  // 2. Save locally
+  writeLocalSettings(merged);
 
   return merged;
 }
 
 /**
  * High-level server-side loader for `/p/[slug]` SSR and `generateMetadata`.
- * Reads page and site settings directly, merging ads cleanly.
+ * Reads page and site settings directly, seamlessly applying active Adsterra units.
  */
 export async function getPageForServer(
   slug: string
@@ -630,7 +583,22 @@ export async function getPageForServer(
       resolvedMediaUrl = await resolveIbbUrl(cleanMediaInputUrl(resolvedMediaUrl));
     } catch { }
 
-    const defaultAds: AdsterraConfig = settings.defaultAds || {};
+    const defaultAds: AdsterraConfig = settings.defaultAds || DEFAULT_ADSTERRA_CONFIG;
+
+    // Helper to get effective ad slot (custom or inherited default)
+    const getEffectiveSlot = (slotKey: keyof AdsterraConfig): string => {
+      const pageVal = (page.ads as any)?.[slotKey];
+      if (typeof pageVal === "string" && pageVal.trim()) {
+        return pageVal.trim();
+      }
+      if (page.useDefaultAds !== false) {
+        const defVal = (defaultAds as any)?.[slotKey];
+        if (typeof defVal === "string" && defVal.trim()) {
+          return defVal.trim();
+        }
+      }
+      return "";
+    };
 
     const mergedAds: AdsterraConfig = {
       allAdsEnabled:
@@ -639,17 +607,17 @@ export async function getPageForServer(
           : defaultAds.allAdsEnabled !== undefined
           ? defaultAds.allAdsEnabled
           : true,
-      socialBar: page.ads?.socialBar || defaultAds.socialBar || "",
-      popunder: page.ads?.popunder || defaultAds.popunder || "",
-      smartlink: page.ads?.smartlink || defaultAds.smartlink || "",
-      banner300x250: page.ads?.banner300x250 || defaultAds.banner300x250 || "",
-      banner728x90: page.ads?.banner728x90 || defaultAds.banner728x90 || "",
-      banner320x50: page.ads?.banner320x50 || defaultAds.banner320x50 || "",
-      banner468x60: page.ads?.banner468x60 || defaultAds.banner468x60 || "",
-      banner160x600: page.ads?.banner160x600 || defaultAds.banner160x600 || "",
-      banner160x300: page.ads?.banner160x300 || defaultAds.banner160x300 || "",
-      nativeBanner: page.ads?.nativeBanner || defaultAds.nativeBanner || "",
-      customAd: page.ads?.customAd || defaultAds.customAd || "",
+      socialBar: getEffectiveSlot("socialBar"),
+      popunder: getEffectiveSlot("popunder"),
+      smartlink: getEffectiveSlot("smartlink"),
+      banner300x250: getEffectiveSlot("banner300x250"),
+      banner728x90: getEffectiveSlot("banner728x90"),
+      banner320x50: getEffectiveSlot("banner320x50"),
+      banner468x60: getEffectiveSlot("banner468x60"),
+      banner160x600: getEffectiveSlot("banner160x600"),
+      banner160x300: getEffectiveSlot("banner160x300"),
+      nativeBanner: getEffectiveSlot("nativeBanner"),
+      customAd: getEffectiveSlot("customAd"),
       status: {
         ...(defaultAds.status || {}),
         ...(page.ads?.status || {}),
@@ -659,9 +627,9 @@ export async function getPageForServer(
     const fallbackAdCode = page.adCode || settings.defaultAdCode || "";
 
     const effectiveCtaLink =
-      page.ctaLink && page.ctaLink !== "https://t.me"
-        ? page.ctaLink
-        : mergedAds.smartlink || page.ctaLink || "https://t.me";
+      page.ctaLink && page.ctaLink !== "https://t.me" && page.ctaLink.trim()
+        ? page.ctaLink.trim()
+        : mergedAds.smartlink || "https://t.me";
 
     return {
       ...page,
@@ -676,3 +644,38 @@ export async function getPageForServer(
   }
 }
 
+// REST helper functions kept for backwards compatibility with upload/route.ts
+export function toFirestoreValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === "boolean") return { booleanValue: val };
+  if (typeof val === "number") {
+    return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
+  }
+  if (typeof val === "string") return { stringValue: val };
+  if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
+  if (typeof val === "object") {
+    const fields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) fields[k] = toFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+export function fromFirestoreValue(val: any): any {
+  if (!val || typeof val !== "object") return null;
+  if ("stringValue" in val) return val.stringValue;
+  if ("integerValue" in val) return Number(val.integerValue);
+  if ("doubleValue" in val) return Number(val.doubleValue);
+  if ("booleanValue" in val) return val.booleanValue;
+  if ("nullValue" in val) return null;
+  if ("arrayValue" in val) return (val.arrayValue.values || []).map(fromFirestoreValue);
+  if ("mapValue" in val) {
+    const res: Record<string, any> = {};
+    const fields = val.mapValue.fields || {};
+    for (const [k, v] of Object.entries(fields)) res[k] = fromFirestoreValue(v);
+    return res;
+  }
+  return null;
+}
