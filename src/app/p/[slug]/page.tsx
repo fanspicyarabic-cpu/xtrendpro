@@ -176,9 +176,12 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
   const showNative = isAdActive(ads, "nativeBanner");
   const showCustomAd = isAdActive(ads, "customAd") || Boolean(page.adCode && isAdActive(ads, "customAd") !== false);
 
-  // Target CTA Link (Smartlink priority if enabled, else ctaLink)
+  // Target CTA Link: Custom link if specified by user, otherwise immediately falls back to active Smartlink
+  const hasCustomLink = Boolean(page.ctaLink && page.ctaLink.trim() && page.ctaLink.trim() !== "#ad-placement");
   const isSmartlinkActive = isAdActive(ads, "smartlink");
-  const targetCtaLink = (isSmartlinkActive && ads.smartlink) ? ads.smartlink : (page.ctaLink || "#ad-placement");
+  const targetCtaLink = hasCustomLink
+    ? page.ctaLink!.trim()
+    : (isSmartlinkActive && ads.smartlink ? ads.smartlink.trim() : "#ad-placement");
 
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#070a12] text-white flex flex-col items-center justify-between relative selection:bg-accent-500 selection:text-white" dir="rtl">

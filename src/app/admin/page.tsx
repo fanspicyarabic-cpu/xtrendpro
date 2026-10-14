@@ -715,7 +715,7 @@ export default function AdminDashboardArabic() {
         ads: finalAds,
         useDefaultAds: formData.useDefaultAds,
         ctaText: formData.ctaText || "⚡ فتح ومشاهدة الفيديو بالكامل بجودة 4K الآن",
-        ctaLink: formData.ctaLink || settings.defaultAds?.smartlink || "https://t.me",
+        ctaLink: formData.ctaLink ? formData.ctaLink.trim() : "",
         createdAt: new Date().toISOString(),
       };
 
@@ -1420,12 +1420,13 @@ export default function AdminDashboardArabic() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-300 mb-1.5">
-                        رابط التحويل (أو اتركه فارغاً لاستخدام Smartlink)
+                      <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center justify-between">
+                        <span>رابط المشاهدة المخصص (اختياري)</span>
+                        <span className="text-[10px] text-amber-400 font-normal">إذا تُرك فارغاً يتحول تلقائياً لرابط الإعلانات (Smartlink)</span>
                       </label>
                       <input
                         type="text"
-                        placeholder={settings.defaultAds?.smartlink ? "مفعل تلقائياً: Smartlink من الإعدادات" : "https://t.me/your_channel"}
+                        placeholder="ضع رابطاً مخصصاً (مثل: تيليجرام أو موقعك) أو اتركه فارغاً للتحويل إلى رابط الإعلانات فوراً"
                         className="w-full glass-input-ar px-3.5 py-2.5 rounded-xl text-xs font-mono text-left"
                         dir="ltr"
                         value={formData.ctaLink || ""}
