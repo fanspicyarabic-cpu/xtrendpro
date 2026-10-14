@@ -698,12 +698,31 @@ export default function AdminDashboardArabic() {
 
     setIsSubmitting(true);
     try {
-      const finalAds: AdsterraConfig = formData.useDefaultAds
-        ? {
-          ...settings.defaultAds,
-          ...(formData.ads || {}),
+      // Prepare ads properly without wiping default ads with blank strings
+      let finalAds: AdsterraConfig;
+      if (formData.useDefaultAds) {
+        finalAds = { ...(settings.defaultAds || {}) };
+        if (formData.ads) {
+          finalAds.allAdsEnabled =
+            formData.ads.allAdsEnabled !== undefined
+              ? formData.ads.allAdsEnabled
+              : settings.defaultAds?.allAdsEnabled ?? true;
+          finalAds.status = {
+            ...(settings.defaultAds?.status || {}),
+            ...(formData.ads.status || {}),
+          };
+          (Object.keys(formData.ads) as (keyof AdsterraConfig)[]).forEach((key) => {
+            if (key !== "status" && key !== "allAdsEnabled") {
+              const val = formData.ads?.[key];
+              if (typeof val === "string" && val.trim()) {
+                (finalAds as any)[key] = val.trim();
+              }
+            }
+          });
         }
-        : (formData.ads || {});
+      } else {
+        finalAds = formData.ads || {};
+      }
 
       const newPage: LandingPageData = {
         slug: formData.slug.trim(),

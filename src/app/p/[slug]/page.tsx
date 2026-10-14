@@ -355,7 +355,7 @@ export default async function DynamicLandingPageArabic({ params }: PageProps) {
           )}
 
           {/* 6. DEDICATED CUSTOM / FALLBACK AD ZONE */}
-          {showCustomAd && (ads.customAd || page.adCode) && !ads.banner300x250 && (
+          {showCustomAd && (ads.customAd || page.adCode) && (
             <div id="ad-placement" className="w-full glass-card-subtle rounded-2xl p-4 border border-white/10 my-3 overflow-hidden flex flex-col items-center">
               <AdsterraContainer
                 adCode={ads.customAd || page.adCode}
